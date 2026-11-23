@@ -3,20 +3,23 @@
 {% block content %}
 <div class="form-container form-narrow">
   <h1>Staff Sign In</h1>
+  <p class="text-muted" style="margin-bottom:1.5rem;">Enter your credentials to access the staff panel.</p>
   {% if error %}
-    <div class="alert alert-danger">{{ error }}</div>
+    <div class="alert alert-danger" role="alert">{{ error }}</div>
   {% endif %}
   <form method="POST" action="/staff/login">
     <div class="field">
-      <label for="username">Username</label>
+      <label for="username">Username <span style="color:var(--color-danger)">*</span></label>
       <input type="text" id="username" name="username" autocomplete="username" required autofocus>
     </div>
     <div class="field">
-      <label for="password">Password</label>
+      <label for="password">Password <span style="color:var(--color-danger)">*</span></label>
       <input type="password" id="password" name="password" autocomplete="current-password" required>
     </div>
-    <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+    <button type="submit" class="btn btn-primary btn-block btn-lg">Sign In →</button>
   </form>
-  <p class="small-note" style="margin-top:1rem">Demo login: <code>organizer / organizer123</code> or <code>doorstaff / door123</code></p>
+  <p class="small-note" style="margin-top:1.25rem;text-align:center;">
+    Demo: <code>organizer / organizer123</code> &nbsp;|&nbsp; <code>doorstaff / door123</code>
+  </p>
 </div>
 {% endblock %}

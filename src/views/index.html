@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Upcoming Events — EventReg{% endblock %}
 {% block content %}
-<h1>Upcoming Events</h1>
+<div class="page-header" style="align-items:baseline;">
+  <h1>Upcoming Events</h1>
+</div>
 {% if events.length === 0 %}
   <p class="empty">No upcoming events at the moment. Check back soon!</p>
 {% endif %}
@@ -23,10 +25,10 @@
       {% if ev.is_full %}
         <strong class="text-danger">Full ({{ ev.capacity }}/{{ ev.capacity }})</strong>
       {% else %}
-        {{ ev.spots_left }} of {{ ev.capacity }} spots left
+        <span class="text-success">{{ ev.spots_left }}</span> of {{ ev.capacity }} spots left
       {% endif %}
     </p>
-    <a href="/events/{{ ev.id }}" class="btn btn-primary">View Details</a>
+    <a href="/events/{{ ev.id }}" class="btn btn-primary">View Details →</a>
   </div>
   {% endfor %}
 </div>

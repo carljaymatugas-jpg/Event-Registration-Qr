@@ -11,9 +11,9 @@
     <div class="detail-row">📍 <span>{{ event.venue }}</span></div>
     <div class="detail-row">🎟 <span>
       {% if event.is_full %}
-        <strong class="text-danger">Full ({{ event.capacity }}/{{ event.capacity }} spots)</strong>
+        <strong class="text-danger">Full — all {{ event.capacity }} spots are taken</strong>
       {% else %}
-        {{ event.spots_left }} of {{ event.capacity }} spots left
+        <strong class="text-success">{{ event.spots_left }}</strong> of {{ event.capacity }} spots left
       {% endif %}
     </span></div>
   </div>
@@ -28,13 +28,13 @@
   {% if event.is_past %}
     <div class="alert alert-secondary">This event has ended.</div>
   {% elif event.is_full %}
-    <div class="alert alert-warning">This event is full. You may join the waitlist.</div>
-    <a href="/events/{{ event.id }}/register" class="btn btn-secondary">Join Waitlist</a>
+    <div class="alert alert-warning">This event is full — but you can join the waitlist and be notified if a spot opens.</div>
+    <a href="/events/{{ event.id }}/register" class="btn btn-secondary btn-lg">Join Waitlist</a>
   {% else %}
-    <a href="/events/{{ event.id }}/register" class="btn btn-primary btn-lg">Register Now</a>
+    <a href="/events/{{ event.id }}/register" class="btn btn-primary btn-lg">Register Now →</a>
   {% endif %}
 
-  <hr>
+  <hr style="margin:1.75rem 0; border:none; border-top:1px solid var(--color-border);">
   <p class="small-note">Already registered? <a href="/lookup">Look up your ticket</a></p>
 </div>
 {% endblock %}

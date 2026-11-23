@@ -3,34 +3,43 @@
 {% block content %}
 <div class="form-container">
   <a href="/events/{{ event.id }}" class="back-link">← Back to Event</a>
-  <h1>Register for<br><span class="event-name">{{ event.title }}</span></h1>
-  <p class="event-meta">📅 {{ event.starts_at | cebuDate }} · 📍 {{ event.venue }}</p>
+  <h1>{% if event.is_full %}Join Waitlist{% else %}Register{% endif %}</h1>
+  <p class="text-muted" style="margin-bottom:1.5rem;">
+    <strong>{{ event.title }}</strong><br>
+    📅 {{ event.starts_at | cebuDate }} · 📍 {{ event.venue }}
+  </p>
+
+  {% if event.is_full %}
+    <div class="alert alert-warning">This event is full. You can join the waitlist and be notified if a spot opens up.</div>
+  {% endif %}
 
   <form method="POST" action="/events/{{ event.id }}/register" novalidate>
 
     <div class="field {% if errors.full_name %}has-error{% endif %}">
-      <label for="full_name">Full Name *</label>
+      <label for="full_name">Full Name <span style="color:var(--color-danger)">*</span></label>
       <input type="text" id="full_name" name="full_name" value="{{ values.full_name or '' }}"
              placeholder="Juan dela Cruz" autocomplete="name" required>
-      {% if errors.full_name %}<span class="field-error">{{ errors.full_name }}</span>{% endif %}
+      {% if errors.full_name %}<span class="field-error" role="alert">{{ errors.full_name }}</span>{% endif %}
     </div>
 
     <div class="field {% if errors.email %}has-error{% endif %}">
-      <label for="email">Email Address *</label>
+      <label for="email">Email Address <span style="color:var(--color-danger)">*</span></label>
       <input type="email" id="email" name="email" value="{{ values.email or '' }}"
              placeholder="juan@example.com" autocomplete="email" required>
-      {% if errors.email %}<span class="field-error">{{ errors.email }}</span>{% endif %}
+      {% if errors.email %}<span class="field-error" role="alert">{{ errors.email }}</span>{% endif %}
     </div>
 
     <div class="field {% if errors.mobile %}has-error{% endif %}">
-      <label for="mobile">Mobile Number * <small>(Philippine format, e.g. 09171234567)</small></label>
+      <label for="mobile">Mobile Number <span style="color:var(--color-danger)">*</span>
+        <small class="text-muted">(Philippine format: 09XXXXXXXXX)</small>
+      </label>
       <input type="tel" id="mobile" name="mobile" value="{{ values.mobile or '' }}"
              placeholder="09171234567" maxlength="11" autocomplete="tel" required>
-      {% if errors.mobile %}<span class="field-error">{{ errors.mobile }}</span>{% endif %}
+      {% if errors.mobile %}<span class="field-error" role="alert">{{ errors.mobile }}</span>{% endif %}
     </div>
 
-    <button type="submit" class="btn btn-primary btn-block">
-      {{ 'Join Waitlist' if event.is_full else 'Register' }}
+    <button type="submit" class="btn btn-primary btn-block btn-lg">
+      {{ 'Join Waitlist' if event.is_full else 'Register Now' }}
     </button>
   </form>
 </div>

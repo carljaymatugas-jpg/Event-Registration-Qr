@@ -4,6 +4,7 @@ const db = require('../db/db');
 const QRCode = require('qrcode');
 const { verifyTicketCode } = require('../utils/ticket');
 const { nowCebu } = require('../utils/time');
+const audit = require('../utils/audit');
 
 // GET /ticket/:code?email=... or ?identifier=...
 router.get('/:code', async (req, res) => {
@@ -63,6 +64,8 @@ router.post('/:code/cancel', (req, res) => {
   }
 
   db.prepare(`UPDATE registrations SET status='Cancelled' WHERE ticket_code=?`).run(code);
+  // Log self-cancellation (no staff session — use 0 as sentinel)
+  try { audit.log(0, 'attendee_cancel', reg.id, `ticket:${code}`); } catch (_) {}
   res.redirect(`/ticket/${code}?identifier=${encodeURIComponent(idVal)}&msg=Registration+cancelled.`);
 });
 

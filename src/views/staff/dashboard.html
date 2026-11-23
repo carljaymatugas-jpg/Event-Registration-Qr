@@ -1,7 +1,16 @@
 {% extends "staff/base_staff.html" %}
 {% block title %}Dashboard — EventReg Staff{% endblock %}
 {% block content %}
-<h1>Staff Dashboard</h1>
+<div class="page-header">
+  <h1>Staff Dashboard</h1>
+  {% if staffUser.role == 'organizer' %}
+    <a href="/staff/events/new" class="btn btn-primary">+ New Event</a>
+  {% endif %}
+</div>
+
+{% if stats.length === 0 %}
+  <p class="empty">No events found. <a href="/staff/events/new">Create the first event</a>.</p>
+{% endif %}
 
 <div class="dashboard-grid">
   {% for ev in stats %}
@@ -15,7 +24,7 @@
     <div class="stat-row"><span>Waitlisted</span><strong>{{ ev.waitlisted or 0 }}</strong></div>
     <div class="stat-row"><span>Cancelled</span><strong>{{ ev.cancelled or 0 }}</strong></div>
     <div class="stat-row"><span>Checked In</span><strong class="text-success">{{ ev.checked_in or 0 }}</strong></div>
-    <div class="stat-row"><span>No-shows</span><strong class="text-muted">{{ ev.no_shows or 0 }}</strong></div>
+    <div class="stat-row"><span>No-shows</span><strong class="text-muted">{{ ev.no_shows }}</strong></div>
     <div class="dash-actions">
       <a href="/staff/checkin?event_id={{ ev.id }}" class="btn btn-primary btn-sm">Check-in Screen</a>
       <a href="/staff/attendees/{{ ev.id }}" class="btn btn-secondary btn-sm">Attendee List</a>
@@ -34,7 +43,7 @@
         {% for entry in logs %}
         <tr>
           <td class="mono small">{{ entry.created_at }}</td>
-          <td>{{ entry.staff_name or '—' }} <span class="text-muted">({{ entry.username or '—' }})</span></td>
+          <td>{{ entry.staff_name or 'Attendee' }} <span class="text-muted">({{ entry.username or 'self' }})</span></td>
           <td><code>{{ entry.action }}</code></td>
           <td class="text-muted">{{ entry.detail or '—' }}</td>
         </tr>

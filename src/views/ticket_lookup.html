@@ -2,8 +2,8 @@
 {% block title %}Find Your Ticket — EventReg{% endblock %}
 {% block content %}
 <div class="form-container">
-  <h1>Find Your Ticket</h1>
-  <p>Enter your ticket code and email (or mobile number) to retrieve your ticket.</p>
+  <h1>🔍 Find Your Ticket</h1>
+  <p class="text-muted" style="margin-bottom:1.5rem;">Enter your ticket code and email (or mobile number) to retrieve your ticket.</p>
 
   {% if error %}
     <div class="alert alert-danger" role="alert">{{ error }}</div>
@@ -11,15 +11,19 @@
 
   <form method="POST" action="/lookup">
     <div class="field">
-      <label for="ticket_code">Ticket Code *</label>
+      <label for="ticket_code">Ticket Code <span style="color:var(--color-danger)">*</span></label>
       <input type="text" id="ticket_code" name="ticket_code" placeholder="e.g. CDM-7K3P9Q-A3F2"
-             style="text-transform:uppercase" required autocomplete="off">
+             style="text-transform:uppercase;font-family:var(--font-mono);letter-spacing:0.06em;" required autocomplete="off">
     </div>
     <div class="field">
-      <label for="identifier">Email or Mobile Number *</label>
+      <label for="identifier">Email or Mobile Number <span style="color:var(--color-danger)">*</span></label>
       <input type="text" id="identifier" name="identifier" placeholder="juan@example.com or 09171234567" required autocomplete="username">
     </div>
-    <button type="submit" class="btn btn-primary btn-block">Find Ticket</button>
+    <button type="submit" class="btn btn-primary btn-block btn-lg">Find Ticket →</button>
   </form>
+
+  <p class="small-note" style="margin-top:1.5rem;text-align:center;">
+    New here? <a href="/">Browse upcoming events</a> and register.
+  </p>
 </div>
 {% endblock %}
