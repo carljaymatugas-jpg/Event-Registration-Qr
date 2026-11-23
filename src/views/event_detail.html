@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ event.title }} — EventReg{% endblock %}
+{% block content %}
+<div class="event-detail">
+  <a href="/" class="back-link">← All Events</a>
+  <h1>{{ event.title }}</h1>
+
+  <div class="detail-meta">
+    <div class="detail-row">📅 <span>{{ event.starts_at | cebuDate }}</span></div>
+    <div class="detail-row">🕐 <span>{{ event.starts_at | cebuTime }} – {{ event.ends_at | cebuTime }}</span></div>
+    <div class="detail-row">📍 <span>{{ event.venue }}</span></div>
+    <div class="detail-row">🎟 <span>
+      {% if event.is_full %}
+        <strong class="text-danger">Full ({{ event.capacity }}/{{ event.capacity }} spots)</strong>
+      {% else %}
+        {{ event.spots_left }} of {{ event.capacity }} spots left
+      {% endif %}
+    </span></div>
+  </div>
+
+  {% if event.description %}
+  <div class="event-desc">
+    <h3>About this event</h3>
+    <p>{{ event.description }}</p>
+  </div>
+  {% endif %}
+
+  {% if event.is_past %}
+    <div class="alert alert-secondary">This event has ended.</div>
+  {% elif event.is_full %}
+    <div class="alert alert-warning">This event is full. You may join the waitlist.</div>
+    <a href="/events/{{ event.id }}/register" class="btn btn-secondary">Join Waitlist</a>
+  {% else %}
+    <a href="/events/{{ event.id }}/register" class="btn btn-primary btn-lg">Register Now</a>
+  {% endif %}
+
+  <hr>
+  <p class="small-note">Already registered? <a href="/lookup">Look up your ticket</a></p>
+</div>
+{% endblock %}

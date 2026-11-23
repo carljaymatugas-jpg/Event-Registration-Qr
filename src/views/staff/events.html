@@ -1,0 +1,41 @@
+{% extends "staff/base_staff.html" %}
+{% block title %}Events — EventReg Staff{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Events</h1>
+  <a href="/staff/events/new" class="btn btn-primary">+ New Event</a>
+</div>
+
+{% if flash %}<div class="alert alert-info">{{ flash }}</div>{% endif %}
+
+<div class="table-responsive">
+  <table class="data-table">
+    <thead>
+      <tr><th>Title</th><th>Status</th><th>Date</th><th>Venue</th><th>Capacity</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for ev in events %}
+      <tr>
+        <td><strong>{{ ev.title }}</strong></td>
+        <td><span class="badge badge-{{ ev.status | lower }}">{{ ev.status }}</span></td>
+        <td class="small">{{ ev.starts_at | cebuDate }}</td>
+        <td class="small">{{ ev.venue }}</td>
+        <td>{{ ev.capacity }}</td>
+        <td>
+          <a href="/staff/attendees/{{ ev.id }}" class="btn btn-sm btn-secondary">Attendees</a>
+          <a href="/staff/events/{{ ev.id }}/edit" class="btn btn-sm btn-secondary">Edit</a>
+          {% if ev.status != 'Closed' %}
+          <form method="POST" action="/staff/events/{{ ev.id }}/close" style="display:inline"
+                onsubmit="return confirm('Close this event?')">
+            <button type="submit" class="btn btn-sm btn-danger">Close</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center text-muted">No events yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

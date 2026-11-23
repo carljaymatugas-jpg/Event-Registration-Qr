@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Staff — EventReg{% endblock %}</title>
+  <link rel="stylesheet" href="/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body class="staff-body">
+  <nav class="navbar navbar-staff">
+    <a href="/staff/dashboard" class="brand">🎟 EventReg Staff</a>
+    <div class="nav-links">
+      <span class="staff-role badge-{{ staffUser.role if staffUser else 'guest' }}">{{ staffUser.role | upper if staffUser else 'Guest' }}</span>
+      <a href="/staff/dashboard">Dashboard</a>
+      <a href="/staff/checkin">Check-in</a>
+      {% if staffUser and staffUser.role == 'organizer' %}
+        <a href="/staff/events">Events</a>
+      {% endif %}
+      {% if staffUser %}
+        <form method="POST" action="/staff/logout" style="display:inline">
+          <button type="submit" class="btn-link">Sign Out</button>
+        </form>
+      {% endif %}
+    </div>
+  </nav>
+
+  <main class="container">
+    {% if flash %}
+      <div class="alert alert-{{ flash.type }}">{{ flash.msg }}</div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>EventReg Staff Panel · Asia/Manila (UTC+8)</p>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

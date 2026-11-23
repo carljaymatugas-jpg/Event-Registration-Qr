@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Your Ticket — EventReg{% endblock %}
+{% block content %}
+<div class="ticket-container {% if reg.status == 'Waitlisted' %}ticket-waitlisted{% elif reg.status == 'Cancelled' %}ticket-cancelled{% endif %}">
+  <div class="ticket-header">
+    <span class="ticket-label">🎟 EVENT TICKET</span>
+    <span class="ticket-status badge-{{ reg.status | lower }}">{{ reg.status }}</span>
+  </div>
+
+  <h2 class="ticket-event">{{ reg.event_title }}</h2>
+  <div class="ticket-meta">
+    <div>📅 {{ reg.starts_at | cebuDate }}</div>
+    <div>🕐 {{ reg.starts_at | cebuTime }} – {{ reg.ends_at | cebuTime }}</div>
+    <div>📍 {{ reg.venue }}</div>
+  </div>
+
+  <div class="ticket-divider"></div>
+
+  <div class="ticket-info">
+    <div class="ticket-row"><span>Name</span><strong>{{ reg.full_name }}</strong></div>
+    <div class="ticket-row"><span>Ticket Code</span><strong class="mono">{{ reg.ticket_code }}</strong></div>
+    <div class="ticket-row"><span>Registered</span><strong>{{ reg.registered_at | cebuDate }}</strong></div>
+    {% if reg.status == 'Waitlisted' %}
+    <div class="ticket-row"><span>Waitlist Position</span><strong>#{{ reg.waitlist_pos }}</strong></div>
+    {% endif %}
+    {% if reg.status == 'CheckedIn' %}
+    <div class="ticket-row"><span>Checked In</span><strong>{{ reg.checked_in_at | cebuTime }}</strong></div>
+    {% endif %}
+  </div>
+
+  {% if reg.status == 'Waitlisted' %}
+    <div class="alert alert-warning">You are on the waitlist. Your QR code is not valid for entry until you are confirmed.</div>
+  {% elif reg.status == 'Cancelled' %}
+    <div class="alert alert-danger">This registration has been cancelled.</div>
+  {% else %}
+    <div class="ticket-qr">
+      <img src="{{ qrDataUrl }}" alt="QR Code for {{ reg.ticket_code }}" width="220" height="220">
+      <p class="qr-hint">Show this QR code at the door</p>
+    </div>
+  {% endif %}
+
+  {% if infoMsg %}
+    <div class="alert alert-info">{{ infoMsg }}</div>
+  {% endif %}
+
+  {% if reg.status in ['Confirmed', 'Waitlisted'] %}
+  <form method="POST" action="/ticket/{{ reg.ticket_code }}/cancel"
+        onsubmit="return confirm('Are you sure you want to cancel your registration?')">
+    <input type="hidden" name="identifier" value="{{ identifier or reg.email }}">
+    <input type="hidden" name="email" value="{{ reg.email }}">
+    <button type="submit" class="btn btn-danger btn-sm">Cancel My Registration</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="lookup-hint">
+  <p>🔍 <a href="/lookup">Look up another ticket</a></p>
+</div>
+{% endblock %}

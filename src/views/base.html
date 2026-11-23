@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}EventReg{% endblock %}</title>
+  <link rel="stylesheet" href="/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="brand">🎟 EventReg</a>
+    <div class="nav-links">
+      <a href="/">Events</a>
+      <a href="/lookup">My Ticket</a>
+      {% if staffUser %}
+        <a href="/staff/dashboard">Staff Dashboard</a>
+        <form method="POST" action="/staff/logout" style="display:inline">
+          <button type="submit" class="btn-link">Sign Out ({{ staffUser.name }})</button>
+        </form>
+      {% else %}
+        <a href="/staff/login">Staff Login</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <main class="container">
+    {% if flash %}
+      <div class="alert alert-{{ flash.type }}">{{ flash.msg }}</div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>EventReg · Asia/Manila (UTC+8) · Free events only</p>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: eventreg
+    env: node
+    plan: free
+    buildCommand: npm install && node src/db/seed.js
+    startCommand: node src/app.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DB_PATH
+        value: /var/data/eventreg.db
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: TICKET_HMAC_SECRET
+        generateValue: true
+    disk:
+      name: eventreg-data
+      mountPath: /var/data
+      sizeGB: 1

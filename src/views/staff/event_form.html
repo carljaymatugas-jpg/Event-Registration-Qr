@@ -1,0 +1,67 @@
+{% extends "staff/base_staff.html" %}
+{% block title %}{{ 'Edit' if event else 'New' }} Event — EventReg Staff{% endblock %}
+{% block content %}
+<div class="form-container">
+  <a href="/staff/events" class="back-link">← All Events</a>
+  <h1>{{ 'Edit Event' if event else 'Create New Event' }}</h1>
+
+  {% set v = values or event or {} %}
+
+  <form method="POST" action="{{ '/staff/events/' + event.id|string + '/edit' if event else '/staff/events/new' }}">
+
+    <div class="field {% if errors.title %}has-error{% endif %}">
+      <label for="title">Title *</label>
+      <input type="text" id="title" name="title" value="{{ v.title or '' }}" required>
+      {% if errors.title %}<span class="field-error">{{ errors.title }}</span>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="4">{{ v.description or '' }}</textarea>
+    </div>
+
+    <div class="field {% if errors.venue %}has-error{% endif %}">
+      <label for="venue">Venue *</label>
+      <input type="text" id="venue" name="venue" value="{{ v.venue or '' }}" required>
+      {% if errors.venue %}<span class="field-error">{{ errors.venue }}</span>{% endif %}
+    </div>
+
+    <div class="field-row">
+      <div class="field {% if errors.starts_at %}has-error{% endif %}">
+        <label for="starts_at">Start Date & Time * <small>(Cebu time)</small></label>
+        <input type="datetime-local" id="starts_at" name="starts_at"
+               value="{{ (v.starts_at or '').replace(' ', 'T').slice(0, 16) }}" required>
+        {% if errors.starts_at %}<span class="field-error">{{ errors.starts_at }}</span>{% endif %}
+      </div>
+      <div class="field {% if errors.ends_at %}has-error{% endif %}">
+        <label for="ends_at">End Date & Time *</label>
+        <input type="datetime-local" id="ends_at" name="ends_at"
+               value="{{ (v.ends_at or '').replace(' ', 'T').slice(0, 16) }}" required>
+        {% if errors.ends_at %}<span class="field-error">{{ errors.ends_at }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field {% if errors.capacity %}has-error{% endif %}">
+        <label for="capacity">Capacity *</label>
+        <input type="number" id="capacity" name="capacity" value="{{ v.capacity or 30 }}" min="1" required>
+        {% if errors.capacity %}<span class="field-error">{{ errors.capacity }}</span>{% endif %}
+      </div>
+      <div class="field {% if errors.status %}has-error{% endif %}">
+        <label for="status">Status *</label>
+        <select id="status" name="status">
+          {% for s in ['Draft', 'Published', 'Closed'] %}
+            <option value="{{ s }}" {% if (v.status or 'Draft') == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+        {% if errors.status %}<span class="field-error">{{ errors.status }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if event else 'Create Event' }}</button>
+      <a href="/staff/events" class="btn btn-link">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,163 @@
+{% extends "staff/base_staff.html" %}
+{% block title %}Check-in — EventReg Staff{% endblock %}
+{% block content %}
+<h1>Check-in Screen</h1>
+
+<form method="GET" action="/staff/checkin" class="inline-form">
+  <label for="event_id"><strong>Event:</strong></label>
+  <select name="event_id" id="event_id" onchange="this.form.submit()">
+    {% for ev in events %}
+      <option value="{{ ev.id }}" {% if ev.id == selectedId %}selected{% endif %}>{{ ev.title }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if selectedEvent %}
+<div class="checkin-counter">
+  <span class="counter-label">Checked In</span>
+  <span class="counter-value" id="checkedInCount">{{ checkedIn }}</span>
+  <span class="counter-sep">/</span>
+  <span class="counter-value" id="confirmedCount">{{ confirmed }}</span>
+</div>
+
+{# Camera QR Scanner (Level 3) #}
+<div class="camera-section">
+  <button type="button" class="btn btn-secondary" id="toggleCamera">📷 Open Camera Scanner</button>
+  <div id="camera-reader" style="display:none; max-width:400px; margin:1rem auto;"></div>
+  <div id="camera-result" style="display:none;" class="result-box result-loading" aria-live="polite"></div>
+</div>
+
+{# Manual code entry (Level 1 / fallback) #}
+<div class="checkin-form-section">
+  <h3>Manual Entry</h3>
+  <form method="POST" action="/staff/checkin" id="manualForm">
+    <input type="hidden" name="event_id" value="{{ selectedId }}">
+    <div class="checkin-input-row">
+      <input type="text" name="ticket_code" id="ticket_code"
+             placeholder="Enter ticket code (e.g. CDM-7K3P9Q-A3F2)"
+             style="text-transform:uppercase; font-size:1.1rem;"
+             autofocus autocomplete="off" required>
+      <button type="submit" class="btn btn-primary">Check In</button>
+    </div>
+  </form>
+</div>
+
+{% if result %}
+<div class="result-box result-{{ result.type }}" role="alert">
+  <strong>
+    {% if result.type == 'success' %}✅ {{ result.msg }}
+    {% elif result.type == 'already' %}🟡 {{ result.msg }}
+    {% elif result.type == 'waitlisted' %}🟠 {{ result.msg }}
+    {% else %}❌ {{ result.msg }}{% endif %}
+  </strong>
+  {% if result.name %}<div>Attendee: {{ result.name }}</div>{% endif %}
+  {% if result.checkin_time %}<div class="small">First checked in: {{ result.checkin_time }}</div>{% endif %}
+</div>
+{% endif %}
+
+{# Undo section (Level 2 — only for checked-in recently) #}
+<div class="undo-section">
+  <h3>Undo a Check-in</h3>
+  <p class="small-note">If you checked in the wrong person, enter their registration ID or ticket code:</p>
+  <form method="POST" action="/staff/checkin/undo">
+    <input type="hidden" name="event_id" value="{{ selectedId }}">
+    <div class="checkin-input-row">
+      <input type="text" name="registration_id" placeholder="Registration ID" required>
+      <button type="submit" class="btn btn-warning">Undo Check-in</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/js/html5-qrcode.min.js"></script>
+<script>
+  if (typeof Html5Qrcode === 'undefined') {
+    document.write('<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"><\\/script>');
+  }
+</script>
+<script>
+(function() {
+  const btn = document.getElementById('toggleCamera');
+  const readerDiv = document.getElementById('camera-reader');
+  const resultDiv = document.getElementById('camera-result');
+  if (!btn) return;
+
+  let scanner = null;
+  let scanning = false;
+  let cooldown = false;
+
+  btn.addEventListener('click', () => {
+    if (!scanning) {
+      readerDiv.style.display = 'block';
+      resultDiv.style.display = 'block';
+      resultDiv.textContent = 'Initialising camera…';
+      resultDiv.className = 'result-box result-loading';
+      btn.textContent = '⛔ Close Camera';
+      scanning = true;
+
+      scanner = new Html5Qrcode('camera-reader');
+      scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 300, height: 300 } },
+        (decodedText) => {
+          if (cooldown) return;
+          cooldown = true;
+          processCode(decodedText);
+          setTimeout(() => { cooldown = false; }, 2500);
+        },
+        () => {}
+      ).catch(err => {
+        resultDiv.textContent = 'Camera error: ' + err;
+        resultDiv.className = 'result-box result-invalid';
+      });
+    } else {
+      scanning = false;
+      btn.textContent = '📷 Open Camera Scanner';
+      readerDiv.style.display = 'none';
+      if (scanner) scanner.stop().catch(() => {});
+    }
+  });
+
+  function processCode(code) {
+    const eventId = {{ selectedId | json }};
+    resultDiv.textContent = 'Scanning…';
+    resultDiv.className = 'result-box result-loading';
+
+    fetch('/staff/checkin/api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticket_code: code, event_id: eventId })
+    })
+    .then(r => r.json())
+    .then(data => {
+      const cls = data.type === 'success' ? 'result-success'
+                : data.type === 'already' ? 'result-already'
+                : data.type === 'waitlisted' ? 'result-waitlisted'
+                : 'result-invalid';
+      resultDiv.className = 'result-box ' + cls;
+      let html = '<strong>';
+      if (data.type === 'success') html += '✅ ';
+      else if (data.type === 'already') html += '🟡 ';
+      else if (data.type === 'waitlisted') html += '🟠 ';
+      else html += '❌ ';
+      html += data.msg + '</strong>';
+      if (data.name) html += '<div>Attendee: ' + data.name + '</div>';
+      if (data.checkin_time) html += '<div class="small">First check-in: ' + data.checkin_time + '</div>';
+      resultDiv.innerHTML = html;
+
+      // Update live counter
+      if (data.type === 'success') {
+        const cnt = document.getElementById('checkedInCount');
+        if (cnt) cnt.textContent = parseInt(cnt.textContent) + 1;
+      }
+    })
+    .catch(() => {
+      resultDiv.textContent = 'Network error — try manual entry.';
+      resultDiv.className = 'result-box result-invalid';
+    });
+  }
+})();
+</script>
+{% endblock %}

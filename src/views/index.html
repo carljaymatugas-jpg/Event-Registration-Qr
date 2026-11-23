@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Upcoming Events — EventReg{% endblock %}
+{% block content %}
+<h1>Upcoming Events</h1>
+{% if events.length === 0 %}
+  <p class="empty">No upcoming events at the moment. Check back soon!</p>
+{% endif %}
+<div class="event-grid">
+  {% for ev in events %}
+  <div class="event-card {% if ev.is_full %}full{% endif %} {% if ev.is_past %}past{% endif %}">
+    <div class="event-card-header">
+      <span class="event-status-badge {% if ev.is_past %}badge-ended{% elif ev.is_full %}badge-full{% else %}badge-open{% endif %}">
+        {% if ev.is_past %}Ended{% elif ev.is_full %}Full{% else %}Open{% endif %}
+      </span>
+    </div>
+    <h2><a href="/events/{{ ev.id }}">{{ ev.title }}</a></h2>
+    <p class="event-meta">
+      📅 {{ ev.starts_at | cebuDate }}<br>
+      🕐 {{ ev.starts_at | cebuTime }} – {{ ev.ends_at | cebuTime }}<br>
+      📍 {{ ev.venue }}
+    </p>
+    <p class="spots">
+      {% if ev.is_full %}
+        <strong class="text-danger">Full ({{ ev.capacity }}/{{ ev.capacity }})</strong>
+      {% else %}
+        {{ ev.spots_left }} of {{ ev.capacity }} spots left
+      {% endif %}
+    </p>
+    <a href="/events/{{ ev.id }}" class="btn btn-primary">View Details</a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

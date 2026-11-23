@@ -1,0 +1,89 @@
+{% extends "staff/base_staff.html" %}
+{% block title %}Attendees — {{ event.title }} — EventReg{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="/staff/dashboard" class="back-link">← Dashboard</a>
+    <h1>{{ event.title }}</h1>
+    <p class="event-meta">📅 {{ event.starts_at | cebuDate }} · 📍 {{ event.venue }}</p>
+  </div>
+  <div class="page-actions">
+    <a href="/staff/attendees/{{ event.id }}/export.csv" class="btn btn-secondary">⬇ Export CSV</a>
+    {% if staffUser.role == 'organizer' %}
+      <a href="/staff/events/{{ event.id }}/edit" class="btn btn-secondary">✏ Edit Event</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if flash %}<div class="alert alert-info">{{ flash }}</div>{% endif %}
+
+<div class="stat-banner">
+  <div class="stat-pill"><span>Capacity</span><strong>{{ event.capacity }}</strong></div>
+  <div class="stat-pill"><span>Confirmed</span><strong>{{ stats.confirmed or 0 }}</strong></div>
+  <div class="stat-pill"><span>Checked In</span><strong class="text-success">{{ stats.checked_in or 0 }}</strong></div>
+  <div class="stat-pill"><span>Waitlisted</span><strong>{{ stats.waitlisted or 0 }}</strong></div>
+  <div class="stat-pill"><span>Cancelled</span><strong class="text-muted">{{ stats.cancelled or 0 }}</strong></div>
+</div>
+
+<form method="GET" action="/staff/attendees/{{ event.id }}" class="search-form">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search by name or ticket code…">
+  <button type="submit" class="btn btn-secondary">Search</button>
+  {% if q %}<a href="/staff/attendees/{{ event.id }}" class="btn btn-link">Clear</a>{% endif %}
+</form>
+
+<div class="table-responsive">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ID</th><th>Name</th><th>Email</th><th>Mobile</th>
+        <th>Ticket Code</th><th>Status</th><th>Registered At</th><th>Checked In</th>
+        {% if staffUser.role == 'organizer' %}<th>Actions</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="row-{{ r.status | lower }}">
+        <td class="mono small">{{ r.id }}</td>
+        <td>{{ r.full_name }}</td>
+        <td class="small">{{ r.email }}</td>
+        <td class="mono small">{{ r.mobile }}</td>
+        <td class="mono small">{{ r.ticket_code }}</td>
+        <td>
+          <span class="badge status-{{ r.status | lower }}">{{ r.status }}</span>
+          {% if r.status == 'Waitlisted' and r.waitlist_pos %}
+            <small>#{{ r.waitlist_pos }}</small>
+          {% endif %}
+        </td>
+        <td class="small">{{ r.registered_at }}</td>
+        <td class="small">{{ r.checked_in_at or '—' }}</td>
+        {% if staffUser.role == 'organizer' %}
+        <td>
+          {% if r.status == 'Waitlisted' %}
+            <form method="POST" action="/staff/attendees/{{ event.id }}/promote/{{ r.id }}" style="display:inline">
+              <button type="submit" class="btn btn-sm btn-success">Promote</button>
+            </form>
+          {% endif %}
+          {% if r.status in ['Confirmed', 'Waitlisted'] %}
+            <form method="POST" action="/staff/attendees/{{ event.id }}/cancel/{{ r.id }}" style="display:inline"
+                  onsubmit="return confirm('Cancel this registration?')">
+              <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
+            </form>
+          {% endif %}
+          {% if r.status == 'CheckedIn' %}
+            <form method="POST" action="/staff/checkin/undo" style="display:inline"
+                  onsubmit="return confirm('Undo this check-in?')">
+              <input type="hidden" name="registration_id" value="{{ r.id }}">
+              <input type="hidden" name="event_id" value="{{ event.id }}">
+              <button type="submit" class="btn btn-sm btn-warning">Undo Check-in</button>
+            </form>
+          {% endif %}
+        </td>
+        {% endif %}
+      </tr>
+      {% else %}
+      <tr><td colspan="9" class="text-center text-muted">No registrations found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
