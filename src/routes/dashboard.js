@@ -17,11 +17,23 @@ router.get('/', (req, res) => {
         SUM(CASE WHEN status IN ('Confirmed','CheckedIn') THEN 1 ELSE 0 END) AS confirmed,
         SUM(CASE WHEN status = 'CheckedIn' THEN 1 ELSE 0 END) AS checked_in,
         SUM(CASE WHEN status = 'Waitlisted' THEN 1 ELSE 0 END) AS waitlisted,
-        SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) AS cancelled,
-        SUM(CASE WHEN status = 'Confirmed' AND ? > ends_at THEN 1 ELSE 0 END) AS no_shows
-      FROM registrations WHERE event_id=?
-    `).get(now, ev.id);
-    return { ...ev, ...s };
+        SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) AS cancelled
+      FROM registrations WHERE event_id = ?
+    `).get(ev.id);
+
+    const hasStarted = now >= ev.starts_at;
+    const confirmedCount = (s && s.confirmed) || 0;
+    const checkedInCount = (s && s.checked_in) || 0;
+    const noShows = hasStarted ? Math.max(0, confirmedCount - checkedInCount) : '—';
+
+    return {
+      ...ev,
+      confirmed: confirmedCount,
+      checked_in: checkedInCount,
+      waitlisted: (s && s.waitlisted) || 0,
+      cancelled: (s && s.cancelled) || 0,
+      no_shows: noShows
+    };
   });
 
   // Audit log (last 50 entries)
