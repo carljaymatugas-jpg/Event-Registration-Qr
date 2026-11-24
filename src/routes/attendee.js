@@ -9,6 +9,14 @@ const { getEventCategory } = require('../utils/category');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function sanitizeInput(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // strip script tags and content
+    .replace(/<[^>]+>/g, '') // strip remaining HTML tags
+    .trim();
+}
+
 // Helper to decorate event object
 function decorateEvent(ev, now) {
   ev.spots_left = Math.max(0, ev.capacity - (ev.confirmed_count || 0));
@@ -132,10 +140,10 @@ router.post('/events/:id/register', async (req, res, next) => {
     const { full_name, email, mobile } = req.body;
     const errors = {};
 
-    // TC-01: Required fields & input validation
-    const rawName = (full_name || '').trim();
+    // TC-01 & TC-05: Required fields, input sanitization & XSS prevention
+    const rawName = sanitizeInput(full_name || '');
     if (!rawName || rawName.length < 2) {
-      errors.full_name = 'Full name is required (minimum 2 characters).';
+      errors.full_name = 'Full name is required (minimum 2 characters, without HTML tags).';
     } else if (rawName.length > 100) {
       errors.full_name = 'Full name cannot exceed 100 characters.';
     }

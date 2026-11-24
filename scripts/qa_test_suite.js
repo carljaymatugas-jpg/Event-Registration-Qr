@@ -61,9 +61,20 @@ async function runAllTests() {
 
   try {
     const now = nowCebu();
-    // Preparation: Get an active published event
+    // Preparation: Get an active published event with available capacity
     const publishedEvents = await db.prepare("SELECT * FROM events WHERE status = 'Published' AND starts_at > ? ORDER BY starts_at ASC").all(now);
-    const testEvent = publishedEvents[0] || (await db.prepare("SELECT * FROM events WHERE status = 'Published' ORDER BY starts_at ASC").all())[0];
+    let testEvent = null;
+    for (const ev of publishedEvents) {
+      const regCountRow = await db.prepare("SELECT COUNT(*) as cnt FROM registrations WHERE event_id = ? AND status != 'Cancelled'").get(ev.id);
+      const cnt = regCountRow ? Number(regCountRow.cnt) : 0;
+      if (ev.capacity > cnt + 5) {
+        testEvent = ev;
+        break;
+      }
+    }
+    if (!testEvent) {
+      testEvent = publishedEvents[0] || (await db.prepare("SELECT * FROM events WHERE status = 'Published' ORDER BY starts_at ASC").all())[0];
+    }
     
     if (!testEvent) {
       throw new Error('No published test event found in database.');
@@ -211,8 +222,9 @@ async function runAllTests() {
       const data = JSON.parse(res.body);
       const ticketRes = await request(`/ticket/${data.ticketCode}?email=${encodeURIComponent(xssEmail)}`);
       
-      const pass = !ticketRes.body.includes('<script>alert') && ticketRes.body.includes('&lt;script&gt;');
-      record('TC-05', 'Special characters & XSS escaping', pass, `Input safely escaped in template output, no script injection.`);
+      // Confirm that malicious script was stripped/sanitized from attendee name and emoji preserved
+      const pass = !ticketRes.body.includes('alert("XSS")') && !ticketRes.body.includes('&lt;script&gt;') && ticketRes.body.includes('Pedro 🎉');
+      record('TC-05', 'Special characters & XSS sanitization', pass, `Malicious script tags stripped, emoji preserved safely.`);
     }
 
     // -----------------------------------------------------------

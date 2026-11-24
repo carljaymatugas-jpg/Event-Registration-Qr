@@ -55,7 +55,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>EventReg Community · Asia/Manila (UTC+8) · Free events with QR check-in</p>
+    <p>EventReg Community · Asia/Manila (UTC+8) <span id="siteClock" style="font-weight: 700; color: #8B5CF6; margin-left: 0.25rem;"></span> · Free events with QR check-in</p>
   </footer>
 
   <script>
@@ -78,6 +78,18 @@
           updateThemeUI(this.checked ? 'dark' : 'light');
         });
       }
+
+      // Live Asia/Manila Clock
+      function updateSiteClock() {
+        var el = document.getElementById('siteClock');
+        if (el) {
+          var now = new Date();
+          var timeStr = now.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+          el.textContent = '· ' + timeStr;
+        }
+      }
+      updateSiteClock();
+      setInterval(updateSiteClock, 1000);
     })();
   </script>
   {% block scripts %}{% endblock %}

@@ -64,6 +64,25 @@ router.post('/:id/close', requireOrganizer, async (req, res, next) => {
   }
 });
 
+// Remove/Delete event
+router.post('/:id/delete', requireOrganizer, async (req, res, next) => {
+  try {
+    const event = await db.prepare('SELECT * FROM events WHERE id=?').get(req.params.id);
+    if (!event) return res.status(404).render('404.html');
+
+    const deleteTx = db.transaction(async () => {
+      await db.prepare('DELETE FROM registrations WHERE event_id=?').run(req.params.id);
+      await db.prepare('DELETE FROM events WHERE id=?').run(req.params.id);
+    });
+    await deleteTx();
+
+    audit.log(req.session.staff.id, 'event_delete', req.params.id, event.title);
+    res.redirect('/staff/events?msg=Event removed successfully.');
+  } catch (err) {
+    next(err);
+  }
+});
+
 async function validateAndSave(req, res, existingEvent) {
   const { title, description, venue, starts_at, ends_at, capacity, status } = req.body;
   const errors = {};

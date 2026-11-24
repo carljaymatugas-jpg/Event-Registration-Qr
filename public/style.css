@@ -18,10 +18,10 @@
   --color-accent-light:   #ECFDF5;
   --color-accent-text:    #065F46;
 
-  /* ── Staff Sidebar Brand Accent (Coral / Crimson Red) ── */
-  --color-brand-red:      #E11D48;
-  --color-brand-red-hover:#BE123C;
-  --color-brand-red-glow: rgba(225, 29, 72, 0.25);
+  /* ── Staff Sidebar Brand Accent (Purple Theme) ── */
+  --color-brand-red:      #7C3AED;
+  --color-brand-red-hover:#6D28D9;
+  --color-brand-red-glow: rgba(124, 58, 237, 0.35);
 
   /* ── Semantic Colors ── */
   --color-success:        #10B981;
@@ -64,7 +64,7 @@
   --color-sidebar-border: #1E293B;
   --color-sidebar-text:   #94A3B8;
   --color-sidebar-hover:  #1E293B;
-  --color-sidebar-active: #E11D48;
+  --color-sidebar-active: #7C3AED;
   --color-sidebar-active-text: #FFFFFF;
   --color-staff-nav:      #0F172A;
   --color-staff-nav-link: #F8FAFC;
@@ -113,9 +113,9 @@
   --color-accent-text:    #34D399;
 
   /* ── Staff Sidebar Brand Accent ── */
-  --color-brand-red:      #E11D48;
-  --color-brand-red-hover:#BE123C;
-  --color-brand-red-glow: rgba(225, 29, 72, 0.4);
+  --color-brand-red:      #8B5CF6;
+  --color-brand-red-hover:#7C3AED;
+  --color-brand-red-glow: rgba(139, 92, 246, 0.4);
 
   /* ── Semantic Colors ── */
   --color-success:        #10B981;
@@ -158,7 +158,7 @@
   --color-sidebar-border: #1E293B;
   --color-sidebar-text:   #94A3B8;
   --color-sidebar-hover:  #131B2E;
-  --color-sidebar-active: #E11D48;
+  --color-sidebar-active: #7C3AED;
   --color-sidebar-active-text: #FFFFFF;
   --color-staff-nav:      #080C16;
   --color-staff-nav-link: #F8FAFC;
@@ -356,14 +356,14 @@ main { flex: 1; }
 .sidebar-brand-icon {
   width: 34px;
   height: 34px;
-  background: var(--color-brand-red);
+  background: linear-gradient(135deg, #7C3AED 0%, #A855F7 100%);
   color: #FFF;
   border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.15rem;
-  box-shadow: 0 4px 14px var(--color-brand-red-glow);
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.55), 0 2px 8px rgba(124, 58, 237, 0.4);
   flex-shrink: 0;
 }
 
@@ -390,7 +390,7 @@ main { flex: 1; }
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--color-brand-red);
+  background: linear-gradient(135deg, #7C3AED 0%, #A855F7 100%);
   color: #FFF;
   display: flex;
   align-items: center;
@@ -398,7 +398,7 @@ main { flex: 1; }
   font-weight: 800;
   font-size: 0.9rem;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px var(--color-brand-red-glow);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
 }
 
 .user-info { display: flex; flex-direction: column; min-width: 0; }
@@ -444,12 +444,12 @@ main { flex: 1; }
   text-decoration: none;
 }
 
-/* Active Nav Link (Coral / Red pill highlight as in reference) */
+/* Active Nav Link (Royal Purple highlight matching design system) */
 .sidebar-link.active {
-  background: var(--color-sidebar-active) !important;
-  color: var(--color-sidebar-active-text) !important;
+  background: linear-gradient(135deg, #7C3AED 0%, #A855F7 100%) !important;
+  color: #FFFFFF !important;
   font-weight: 700;
-  box-shadow: 0 4px 14px var(--color-brand-red-glow);
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.45);
 }
 .sidebar-link.active .sidebar-icon {
   stroke: #FFFFFF !important;
@@ -2190,4 +2190,55 @@ main { flex: 1; }
   .lookup-action-btn { width: 100%; text-align: center; justify-content: center; }
   .pagination-bar { flex-direction: column; align-items: stretch; text-align: center; }
   .pagination-nav { justify-content: center; }
+}
+
+
+/* ── Ticket Page Footer Links (Muted by default, color only on hover) ── */
+.ticket-bottom-link {
+  color: var(--color-secondary) !important;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+.ticket-bottom-link:hover {
+  color: #7C3AED !important;
+  text-decoration: underline !important;
+}
+
+/* ── Door Check-in Styled Event Dropdown ── */
+.styled-select-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.styled-event-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text-heading);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  padding: 0.45rem 2.25rem 0.45rem 1rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+.styled-event-select:hover {
+  border-color: #8B5CF6;
+  background: var(--color-surface-hover);
+}
+.styled-event-select:focus {
+  outline: none;
+  border-color: #7C3AED;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+}
+.styled-select-chevron {
+  position: absolute;
+  right: 0.85rem;
+  pointer-events: none;
+  color: var(--color-secondary);
 }

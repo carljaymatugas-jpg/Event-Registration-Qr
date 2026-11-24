@@ -71,7 +71,7 @@
       <p class="qr-hint">Present this QR code to door staff for check-in. Valid only on event date.</p>
     {% endif %}
 
-    {% if infoMsg %}
+    {% if infoMsg and reg.status != 'Cancelled' %}
       <div class="alert alert-info" style="margin: 0 1.5rem 1rem;">{{ infoMsg }}</div>
     {% endif %}
 
@@ -90,7 +90,7 @@
   </div>
 
   <div style="text-align: center; margin-top: 1.5rem;">
-    <p class="small-note">🔍 <a href="/lookup">Look up another ticket</a> &nbsp;·&nbsp; <a href="/">Back to Events</a></p>
+    <p class="small-note ticket-footer-note">🔍 <a href="/lookup" class="ticket-bottom-link">Look up another ticket</a> &nbsp;·&nbsp; <a href="/" class="ticket-bottom-link">Back to Events</a></p>
   </div>
 </div>
 {% endblock %}
