@@ -113,7 +113,11 @@ if (DATABASE_URL) {
 } else {
   // SQLite fallback
   const dbDir = path.resolve(process.env.DB_PATH ? path.dirname(process.env.DB_PATH) : './data');
-  if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+  try {
+    if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+  } catch (err) {
+    console.warn('Notice: Local database directory cannot be created (e.g. read-only serverless filesystem):', err.message);
+  }
 
   const dbPath = path.resolve(process.env.DB_PATH || './data/eventreg.db');
 
