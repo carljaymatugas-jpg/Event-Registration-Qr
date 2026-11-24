@@ -99,4 +99,14 @@ db.exec(`
     WHERE status IN ('Confirmed','CheckedIn','Waitlisted');
 `);
 
+// Self-healing auto-seed if organizer account does not exist
+try {
+  const org = db.prepare('SELECT id FROM staff_users WHERE username = ?').get('organizer');
+  if (!org) {
+    require('./seed');
+  }
+} catch (e) {
+  console.warn('Auto-seed check:', e.message);
+}
+
 module.exports = db;

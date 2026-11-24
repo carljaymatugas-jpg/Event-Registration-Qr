@@ -21,7 +21,10 @@ router.post('/login', (req, res) => {
     return res.render('staff/login.html', { error: 'Invalid username or password.' });
   }
   req.session.staff = { id: user.id, name: user.name, username: user.username, role: user.role };
-  res.redirect('/staff/dashboard');
+  req.session.save((err) => {
+    if (err) console.error('Session save error:', err);
+    res.redirect('/staff/dashboard');
+  });
 });
 
 // POST logout
