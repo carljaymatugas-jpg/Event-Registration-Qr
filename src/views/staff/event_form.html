@@ -1,5 +1,6 @@
 {% extends "staff/base_staff.html" %}
 {% block title %}{{ 'Edit' if event else 'New' }} Event — EventReg Staff{% endblock %}
+{% block nav_events %}active{% endblock %}
 {% block content %}
 <div class="form-container">
   <a href="/staff/events" class="back-link">← All Events</a>

@@ -8,6 +8,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
+  <script>
+    (function() {
+      var saved = localStorage.getItem('eventreg-theme') || 'light';
+      document.documentElement.setAttribute('data-theme', saved);
+    })();
+  </script>
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -24,6 +30,14 @@
       {% else %}
         <a href="/staff/login">Staff Login</a>
       {% endif %}
+      <!-- Theme Switcher -->
+      <div class="theme-switch-container" style="padding: 0.25rem 0.5rem; border: none; margin: 0;">
+        <span class="theme-mode-icon" id="themeIcon">🌙</span>
+        <label class="theme-toggle-switch">
+          <input type="checkbox" id="themeCheckbox">
+          <span class="theme-slider"></span>
+        </label>
+      </div>
     </div>
   </nav>
 
@@ -37,6 +51,29 @@
   <footer class="site-footer">
     <p>EventReg · Asia/Manila (UTC+8) · Free events only</p>
   </footer>
+
+  <script>
+    (function() {
+      var checkbox = document.getElementById('themeCheckbox');
+      var themeIcon = document.getElementById('themeIcon');
+      var currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+
+      function updateThemeUI(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('eventreg-theme', theme);
+        if (checkbox) checkbox.checked = (theme === 'dark');
+        if (themeIcon) themeIcon.textContent = (theme === 'dark') ? '☀️' : '🌙';
+      }
+
+      updateThemeUI(currentTheme);
+
+      if (checkbox) {
+        checkbox.addEventListener('change', function() {
+          updateThemeUI(this.checked ? 'dark' : 'light');
+        });
+      }
+    })();
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
