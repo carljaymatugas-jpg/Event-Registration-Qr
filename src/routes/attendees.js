@@ -69,6 +69,16 @@ router.post('/:event_id/uncancel/:reg_id', requireOrganizer, (req, res) => {
   res.redirect(`/staff/attendees/${req.params.event_id}?msg=Registration restored to Confirmed.`);
 });
 
+// POST permanently delete a cancelled registration (staff)
+router.post('/:event_id/delete/:reg_id', requireOrganizer, (req, res) => {
+  const reg = db.prepare('SELECT * FROM registrations WHERE id=? AND event_id=?').get(req.params.reg_id, req.params.event_id);
+  if (!reg) return res.redirect(`/staff/attendees/${req.params.event_id}?msg=Registration not found.`);
+
+  db.prepare('DELETE FROM registrations WHERE id=?').run(reg.id);
+  audit.log(req.session.staff.id, 'delete_registration', reg.id, `ticket:${reg.ticket_code} (deleted record)`);
+  res.redirect(`/staff/attendees/${req.params.event_id}?msg=Attendee record permanently deleted.`);
+});
+
 // POST promote waitlisted person
 router.post('/:event_id/promote/:reg_id', requireOrganizer, (req, res) => {
   const event = db.prepare('SELECT * FROM events WHERE id = ?').get(req.params.event_id);

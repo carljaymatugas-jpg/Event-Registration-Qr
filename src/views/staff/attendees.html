@@ -79,6 +79,10 @@
                       onsubmit="return confirm('Restore this registration to Confirmed?')">
                   <button type="submit" class="btn btn-sm btn-secondary">Restore</button>
                 </form>
+                <form method="POST" action="/staff/attendees/{{ event.id }}/delete/{{ r.id }}" style="display:inline"
+                      onsubmit="return confirm('Are you sure you want to permanently delete this attendee record?')">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
               {% endif %}
               {% if r.status == 'CheckedIn' %}
                 <form method="POST" action="/staff/checkin/undo" style="display:inline"
