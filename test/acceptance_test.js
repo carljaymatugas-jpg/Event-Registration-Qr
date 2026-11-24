@@ -174,7 +174,7 @@ async function runAcceptanceChecks() {
     console.log('✔ 08 Scanning waitlisted ticket shows "On waitlist — not confirmed"');
 
     // 10. Undo check-in
-    const regRow = db.prepare('SELECT id FROM registrations WHERE ticket_code = ?').get(ticketCode);
+    const regRow = await db.prepare('SELECT id FROM registrations WHERE ticket_code = ?').get(ticketCode);
     const undoRes = await post('/staff/checkin/undo', {
       registration_id: regRow.id,
       event_id: '2'

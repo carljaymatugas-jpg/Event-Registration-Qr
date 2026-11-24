@@ -7,7 +7,7 @@ const audit = require('../utils/audit');
 
 router.use(requireStaff);
 
-function getDashboardAnalytics(eventId = 'all', range = 'all') {
+async function getDashboardAnalytics(eventId = 'all', range = 'all') {
   let where = [];
   let params = [];
 
@@ -16,16 +16,24 @@ function getDashboardAnalytics(eventId = 'all', range = 'all') {
     params.push(Number(eventId));
   }
 
-  if (range === 'today') {
-    where.push("date(registered_at) = date('now', '+8 hours')");
-  } else if (range === '7d') {
-    where.push("registered_at >= datetime('now', '+8 hours', '-7 days')");
+  if (db.isPostgres) {
+    if (range === 'today') {
+      where.push("registered_at::date = (CURRENT_TIMESTAMP + INTERVAL '8 hours')::date");
+    } else if (range === '7d') {
+      where.push("registered_at >= (CURRENT_TIMESTAMP + INTERVAL '8 hours' - INTERVAL '7 days')");
+    }
+  } else {
+    if (range === 'today') {
+      where.push("date(registered_at) = date('now', '+8 hours')");
+    } else if (range === '7d') {
+      where.push("registered_at >= datetime('now', '+8 hours', '-7 days')");
+    }
   }
 
   const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
   // Summary counts
-  const summary = db.prepare(`
+  const summary = (await db.prepare(`
     SELECT
       COUNT(*) AS total_registered,
       SUM(CASE WHEN status = 'Confirmed' THEN 1 ELSE 0 END) AS confirmed,
@@ -34,7 +42,7 @@ function getDashboardAnalytics(eventId = 'all', range = 'all') {
       SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) AS cancelled
     FROM registrations
     ${whereClause}
-  `).get(...params) || {};
+  `).get(...params)) || {};
 
   // Capacity calculation
   let capQuery = "SELECT SUM(capacity) as total_capacity FROM events WHERE status IN ('Published', 'Closed')";
@@ -43,7 +51,7 @@ function getDashboardAnalytics(eventId = 'all', range = 'all') {
     capQuery = 'SELECT capacity as total_capacity FROM events WHERE id = ?';
     capParams = [Number(eventId)];
   }
-  const capRow = db.prepare(capQuery).get(...capParams);
+  const capRow = await db.prepare(capQuery).get(...capParams);
   const totalCapacity = (capRow && capRow.total_capacity) || 0;
 
   const confirmed = summary.confirmed || 0;
@@ -57,7 +65,7 @@ function getDashboardAnalytics(eventId = 'all', range = 'all') {
   const capacityRate = totalCapacity > 0 ? Math.min(100, Math.round((activeConfirmed / totalCapacity) * 100)) : 0;
 
   // Timeline points
-  const regList = db.prepare(`
+  const regList = await db.prepare(`
     SELECT registered_at
     FROM registrations
     ${whereClause}
@@ -70,13 +78,21 @@ function getDashboardAnalytics(eventId = 'all', range = 'all') {
     checkinWhere.push('event_id = ?');
     checkinParams.push(Number(eventId));
   }
-  if (range === 'today') {
-    checkinWhere.push("date(checked_in_at) = date('now', '+8 hours')");
-  } else if (range === '7d') {
-    checkinWhere.push("checked_in_at >= datetime('now', '+8 hours', '-7 days')");
+  if (db.isPostgres) {
+    if (range === 'today') {
+      checkinWhere.push("checked_in_at::date = (CURRENT_TIMESTAMP + INTERVAL '8 hours')::date");
+    } else if (range === '7d') {
+      checkinWhere.push("checked_in_at >= (CURRENT_TIMESTAMP + INTERVAL '8 hours' - INTERVAL '7 days')");
+    }
+  } else {
+    if (range === 'today') {
+      checkinWhere.push("date(checked_in_at) = date('now', '+8 hours')");
+    } else if (range === '7d') {
+      checkinWhere.push("checked_in_at >= datetime('now', '+8 hours', '-7 days')");
+    }
   }
 
-  const checkinList = db.prepare(`
+  const checkinList = await db.prepare(`
     SELECT checked_in_at
     FROM registrations
     WHERE ${checkinWhere.join(' AND ')}
@@ -86,9 +102,9 @@ function getDashboardAnalytics(eventId = 'all', range = 'all') {
   // Map into time buckets
   const bucketMap = new Map();
 
-  function formatBucketLabel(dtStr) {
-    if (!dtStr) return 'Other';
-    // dtStr: "2026-11-24 09:15:00" -> "11/24 09:00"
+  function formatBucketLabel(dtVal) {
+    if (!dtVal) return 'Other';
+    const dtStr = dtVal instanceof Date ? dtVal.toISOString().replace('T', ' ') : String(dtVal);
     return dtStr.substring(5, 13) + ':00';
   }
 
@@ -121,7 +137,7 @@ function getDashboardAnalytics(eventId = 'all', range = 'all') {
   });
 
   // Events list for comparison and filter dropdown
-  const events = db.prepare(`
+  const events = await db.prepare(`
     SELECT e.id, e.title, e.capacity, e.status, e.starts_at, e.venue,
       SUM(CASE WHEN r.status IN ('Confirmed', 'CheckedIn') THEN 1 ELSE 0 END) AS active_confirmed,
       SUM(CASE WHEN r.status = 'CheckedIn' THEN 1 ELSE 0 END) AS checked_in,
@@ -130,7 +146,7 @@ function getDashboardAnalytics(eventId = 'all', range = 'all') {
     FROM events e
     LEFT JOIN registrations r ON r.event_id = e.id
     WHERE e.status IN ('Published', 'Closed')
-    GROUP BY e.id
+    GROUP BY e.id, e.title, e.capacity, e.status, e.starts_at, e.venue
     ORDER BY e.starts_at ASC
   `).all();
 
@@ -151,56 +167,64 @@ function getDashboardAnalytics(eventId = 'all', range = 'all') {
   };
 }
 
-router.get('/api/stats', (req, res) => {
-  const eventId = req.query.event_id || 'all';
-  const range = req.query.range || 'all';
-  const analytics = getDashboardAnalytics(eventId, range);
-  res.json({
-    success: true,
-    serverTime: nowCebu(),
-    ...analytics
-  });
+router.get('/api/stats', async (req, res, next) => {
+  try {
+    const eventId = req.query.event_id || 'all';
+    const range = req.query.range || 'all';
+    const analytics = await getDashboardAnalytics(eventId, range);
+    res.json({
+      success: true,
+      serverTime: nowCebu(),
+      ...analytics
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/', (req, res) => {
-  const now = nowCebu();
-  const events = db.prepare(`SELECT * FROM events WHERE status IN ('Published','Closed') ORDER BY starts_at DESC`).all();
+router.get('/', async (req, res, next) => {
+  try {
+    const now = nowCebu();
+    const events = await db.prepare(`SELECT * FROM events WHERE status IN ('Published','Closed') ORDER BY starts_at DESC`).all();
 
-  const stats = events.map(ev => {
-    const s = db.prepare(`
-      SELECT
-        SUM(CASE WHEN status IN ('Confirmed','CheckedIn') THEN 1 ELSE 0 END) AS confirmed,
-        SUM(CASE WHEN status = 'CheckedIn' THEN 1 ELSE 0 END) AS checked_in,
-        SUM(CASE WHEN status = 'Waitlisted' THEN 1 ELSE 0 END) AS waitlisted,
-        SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) AS cancelled
-      FROM registrations WHERE event_id = ?
-    `).get(ev.id);
+    const stats = await Promise.all(events.map(async ev => {
+      const s = await db.prepare(`
+        SELECT
+          SUM(CASE WHEN status IN ('Confirmed','CheckedIn') THEN 1 ELSE 0 END) AS confirmed,
+          SUM(CASE WHEN status = 'CheckedIn' THEN 1 ELSE 0 END) AS checked_in,
+          SUM(CASE WHEN status = 'Waitlisted' THEN 1 ELSE 0 END) AS waitlisted,
+          SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) AS cancelled
+        FROM registrations WHERE event_id = ?
+      `).get(ev.id);
 
-    const hasStarted = now >= ev.starts_at;
-    const confirmedCount = (s && s.confirmed) || 0;
-    const checkedInCount = (s && s.checked_in) || 0;
-    const noShows = hasStarted ? Math.max(0, confirmedCount - checkedInCount) : '—';
+      const hasStarted = now >= ev.starts_at;
+      const confirmedCount = (s && s.confirmed) || 0;
+      const checkedInCount = (s && s.checked_in) || 0;
+      const noShows = hasStarted ? Math.max(0, confirmedCount - checkedInCount) : '—';
 
-    return {
-      ...ev,
-      confirmed: confirmedCount,
-      checked_in: checkedInCount,
-      waitlisted: (s && s.waitlisted) || 0,
-      cancelled: (s && s.cancelled) || 0,
-      no_shows: noShows
-    };
-  });
+      return {
+        ...ev,
+        confirmed: confirmedCount,
+        checked_in: checkedInCount,
+        waitlisted: (s && s.waitlisted) || 0,
+        cancelled: (s && s.cancelled) || 0,
+        no_shows: noShows
+      };
+    }));
 
-  // Audit log (last 50 entries)
-  const logs = db.prepare(`
-    SELECT a.*, s.name as staff_name, s.username FROM audit_logs a
-    LEFT JOIN staff_users s ON s.id = a.staff_user_id
-    ORDER BY a.created_at DESC LIMIT 50
-  `).all();
+    // Audit log (last 50 entries)
+    const logs = await db.prepare(`
+      SELECT a.*, s.name as staff_name, s.username FROM audit_logs a
+      LEFT JOIN staff_users s ON s.id = a.staff_user_id
+      ORDER BY a.created_at DESC LIMIT 50
+    `).all();
 
-  const analytics = getDashboardAnalytics('all', 'all');
+    const analytics = await getDashboardAnalytics('all', 'all');
 
-  res.render('staff/dashboard.html', { stats, logs, analytics });
+    res.render('staff/dashboard.html', { stats, logs, analytics });
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = router;
