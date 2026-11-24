@@ -30,7 +30,7 @@
 
   {% if reg.status == 'Waitlisted' %}
     <div class="alert alert-warning" style="margin:0 1.5rem 1rem;">
-      ⏳ You are <strong>#{{ reg.waitlist_pos }}</strong> on the waitlist. Your QR code is not valid for entry until you are confirmed.
+      ⏳ You are <strong>#{{ reg.waitlist_pos }}</strong> on the waitlist. This QR code identifies your ticket, but it is not valid for entry until you are confirmed.
     </div>
   {% elif reg.status == 'Cancelled' %}
     <div class="alert alert-danger" style="margin:0 1.5rem 1rem;">
@@ -40,7 +40,9 @@
     <div class="alert alert-info" style="margin:0 1.5rem 1rem;">
       ✅ You have been checked in successfully.
     </div>
-  {% else %}
+  {% endif %}
+
+  {% if reg.status in ['Confirmed', 'Waitlisted'] %}
     <div class="ticket-qr">
       <img src="{{ qrDataUrl }}" alt="QR Code for {{ reg.ticket_code }}" width="220" height="220">
       <p class="qr-hint">Show this QR code at the door</p>
