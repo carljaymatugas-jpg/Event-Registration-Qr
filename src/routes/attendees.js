@@ -43,6 +43,32 @@ router.post('/:event_id/cancel/:reg_id', requireOrganizer, (req, res) => {
   res.redirect(`/staff/attendees/${req.params.event_id}?msg=Registration cancelled.`);
 });
 
+// POST restore/uncancel a registration (staff)
+router.post('/:event_id/uncancel/:reg_id', requireOrganizer, (req, res) => {
+  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(req.params.event_id);
+  const reg = db.prepare(`SELECT * FROM registrations WHERE id=? AND event_id=? AND status='Cancelled'`).get(req.params.reg_id, req.params.event_id);
+  if (!reg || !event) return res.redirect(`/staff/attendees/${req.params.event_id}?msg=Registration not found.`);
+
+  const restore = db.transaction(() => {
+    const confirmed = db.prepare(`SELECT COUNT(*) AS c FROM registrations WHERE event_id=? AND status IN ('Confirmed','CheckedIn')`).get(event.id).c;
+    if (confirmed >= event.capacity) return { error: 'Event is full — cannot restore as Confirmed.' };
+
+    const dup = db.prepare(`SELECT id FROM registrations WHERE event_id=? AND email=? AND status IN ('Confirmed','CheckedIn','Waitlisted')`).get(event.id, reg.email);
+    if (dup) return { error: 'This attendee already has an active registration.' };
+
+    db.prepare(`UPDATE registrations SET status='Confirmed' WHERE id=?`).run(reg.id);
+    return { success: true };
+  });
+
+  const result = restore();
+  if (result.error) {
+    return res.redirect(`/staff/attendees/${req.params.event_id}?msg=${encodeURIComponent(result.error)}`);
+  }
+
+  audit.log(req.session.staff.id, 'uncancel_registration', reg.id, `ticket:${reg.ticket_code}`);
+  res.redirect(`/staff/attendees/${req.params.event_id}?msg=Registration restored to Confirmed.`);
+});
+
 // POST promote waitlisted person
 router.post('/:event_id/promote/:reg_id', requireOrganizer, (req, res) => {
   const event = db.prepare('SELECT * FROM events WHERE id = ?').get(req.params.event_id);

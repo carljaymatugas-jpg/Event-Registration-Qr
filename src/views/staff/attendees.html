@@ -69,6 +69,12 @@
               <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
             </form>
           {% endif %}
+          {% if r.status == 'Cancelled' %}
+            <form method="POST" action="/staff/attendees/{{ event.id }}/uncancel/{{ r.id }}" style="display:inline"
+                  onsubmit="return confirm('Restore this registration to Confirmed?')">
+              <button type="submit" class="btn btn-sm btn-secondary">Restore</button>
+            </form>
+          {% endif %}
           {% if r.status == 'CheckedIn' %}
             <form method="POST" action="/staff/checkin/undo" style="display:inline"
                   onsubmit="return confirm('Undo this check-in?')">
