@@ -1,96 +1,102 @@
 {% extends "staff/base_staff.html" %}
 {% block title %}Attendees — {{ event.title }} — EventReg{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
+
 {% block content %}
-<div class="page-header">
+<div class="page-header" style="align-items: center; margin-bottom: 1.25rem;">
   <div>
-    <a href="/staff/dashboard" class="back-link">← Dashboard</a>
-    <h1>{{ event.title }}</h1>
-    <p class="event-meta">📅 {{ event.starts_at | cebuDate }} · 📍 {{ event.venue }}</p>
+    <a href="/staff/dashboard" class="back-link">← Back to Dashboard</a>
+    <h1 style="font-size: var(--text-2xl); font-weight: 800; margin: 0;">{{ event.title }}</h1>
+    <p class="event-meta" style="margin-top: 0.2rem;">📅 {{ event.starts_at | cebuDate }} &nbsp;·&nbsp; 📍 {{ event.venue }}</p>
   </div>
-  <div class="page-actions">
-    <a href="/staff/attendees/{{ event.id }}/export.csv" class="btn btn-secondary">⬇ Export CSV</a>
+  <div style="display: flex; gap: 0.5rem; align-items: center;">
+    <a href="/staff/attendees/{{ event.id }}/export.csv" class="btn btn-secondary btn-sm">⬇ Export CSV</a>
     {% if staffUser.role == 'organizer' %}
-      <a href="/staff/events/{{ event.id }}/edit" class="btn btn-secondary">✏ Edit Event</a>
+      <a href="/staff/events/{{ event.id }}/edit" class="btn btn-secondary btn-sm">✏ Edit Event</a>
     {% endif %}
   </div>
 </div>
 
 {% if flash %}<div class="alert alert-info">{{ flash }}</div>{% endif %}
 
-<div class="stat-banner">
-  <div class="stat-pill"><span>Capacity</span><strong>{{ event.capacity }}</strong></div>
-  <div class="stat-pill"><span>Confirmed</span><strong>{{ stats.confirmed or 0 }}</strong></div>
-  <div class="stat-pill"><span>Checked In</span><strong class="text-success">{{ stats.checked_in or 0 }}</strong></div>
-  <div class="stat-pill"><span>Waitlisted</span><strong>{{ stats.waitlisted or 0 }}</strong></div>
-  <div class="stat-pill"><span>Cancelled</span><strong class="text-muted">{{ stats.cancelled or 0 }}</strong></div>
+<!-- Stats Pill Row -->
+<div class="active-event-banner-bar" style="margin-bottom: 1.5rem; justify-content: flex-start; gap: 1.5rem;">
+  <div><small class="text-muted" style="display:block; text-transform:uppercase; font-size:0.65rem; font-weight:700;">CAPACITY</small><strong>{{ event.capacity }}</strong></div>
+  <div><small class="text-muted" style="display:block; text-transform:uppercase; font-size:0.65rem; font-weight:700;">CONFIRMED</small><strong>{{ stats.confirmed or 0 }}</strong></div>
+  <div><small class="text-muted" style="display:block; text-transform:uppercase; font-size:0.65rem; font-weight:700;">CHECKED IN</small><strong class="text-success">{{ stats.checked_in or 0 }}</strong></div>
+  <div><small class="text-muted" style="display:block; text-transform:uppercase; font-size:0.65rem; font-weight:700;">WAITLISTED</small><strong class="text-warning">{{ stats.waitlisted or 0 }}</strong></div>
+  <div><small class="text-muted" style="display:block; text-transform:uppercase; font-size:0.65rem; font-weight:700;">CANCELLED</small><strong class="text-muted">{{ stats.cancelled or 0 }}</strong></div>
 </div>
 
-<form method="GET" action="/staff/attendees/{{ event.id }}" class="search-form">
-  <input type="text" name="q" value="{{ q }}" placeholder="Search by name or ticket code…">
-  <button type="submit" class="btn btn-secondary">Search</button>
+<form method="GET" action="/staff/attendees/{{ event.id }}" class="search-form" style="margin-bottom: 1.25rem;">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search attendee name, email, or ticket code…" style="padding: 0.6rem 1rem; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-size: var(--text-sm); flex: 1; max-width: 440px;">
+  <button type="submit" class="btn btn-secondary btn-sm">Search</button>
   {% if q %}<a href="/staff/attendees/{{ event.id }}" class="btn btn-link">Clear</a>{% endif %}
 </form>
 
-<div class="table-responsive">
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>ID</th><th>Name</th><th>Email</th><th>Mobile</th>
-        <th>Ticket Code</th><th>Status</th><th>Registered At</th><th>Checked In</th>
-        {% if staffUser.role == 'organizer' %}<th>Actions</th>{% endif %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in rows %}
-      <tr class="row-{{ r.status | lower }}">
-        <td class="mono small">{{ r.id }}</td>
-        <td>{{ r.full_name }}</td>
-        <td class="small">{{ r.email }}</td>
-        <td class="mono small">{{ r.mobile }}</td>
-        <td class="mono small">{{ r.ticket_code }}</td>
-        <td>
-          <span class="badge status-{{ r.status | lower }}">{{ r.status }}</span>
-          {% if r.status == 'Waitlisted' and r.waitlist_pos %}
-            <small>#{{ r.waitlist_pos }}</small>
+<div class="table-card">
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th><th>Attendee Name</th><th>Email</th><th>Mobile (PH)</th>
+          <th>Ticket Code</th><th>Status</th><th>Registered At</th><th>Door Time</th>
+          {% if staffUser.role == 'organizer' %}<th>Actions</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="mono small">{{ r.id }}</td>
+          <td><strong>{{ r.full_name }}</strong></td>
+          <td class="small">{{ r.email }}</td>
+          <td class="mono small">{{ r.mobile }}</td>
+          <td class="mono small" style="font-weight: 700; color: var(--color-cta);">{{ r.ticket_code }}</td>
+          <td>
+            <span class="badge status-{{ r.status | lower }}">{{ r.status }}</span>
+            {% if r.status == 'Waitlisted' and r.waitlist_pos %}
+              <small style="font-weight: 700;">#{{ r.waitlist_pos }}</small>
+            {% endif %}
+          </td>
+          <td class="small">{{ r.registered_at }}</td>
+          <td class="small">{{ r.checked_in_at or '—' }}</td>
+          {% if staffUser.role == 'organizer' %}
+          <td>
+            <div style="display: flex; gap: 0.35rem; align-items: center;">
+              {% if r.status == 'Waitlisted' %}
+                <form method="POST" action="/staff/attendees/{{ event.id }}/promote/{{ r.id }}" style="display:inline">
+                  <button type="submit" class="btn btn-sm btn-success">Promote</button>
+                </form>
+              {% endif %}
+              {% if r.status in ['Confirmed', 'Waitlisted'] %}
+                <form method="POST" action="/staff/attendees/{{ event.id }}/cancel/{{ r.id }}" style="display:inline"
+                      onsubmit="return confirm('Cancel this registration?')">
+                  <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
+                </form>
+              {% endif %}
+              {% if r.status == 'Cancelled' %}
+                <form method="POST" action="/staff/attendees/{{ event.id }}/uncancel/{{ r.id }}" style="display:inline"
+                      onsubmit="return confirm('Restore this registration to Confirmed?')">
+                  <button type="submit" class="btn btn-sm btn-secondary">Restore</button>
+                </form>
+              {% endif %}
+              {% if r.status == 'CheckedIn' %}
+                <form method="POST" action="/staff/checkin/undo" style="display:inline"
+                      onsubmit="return confirm('Undo this check-in?')">
+                  <input type="hidden" name="registration_id" value="{{ r.id }}">
+                  <input type="hidden" name="event_id" value="{{ event.id }}">
+                  <button type="submit" class="btn btn-sm btn-secondary">Undo</button>
+                </form>
+              {% endif %}
+            </div>
+          </td>
           {% endif %}
-        </td>
-        <td class="small">{{ r.registered_at }}</td>
-        <td class="small">{{ r.checked_in_at or '—' }}</td>
-        {% if staffUser.role == 'organizer' %}
-        <td>
-          {% if r.status == 'Waitlisted' %}
-            <form method="POST" action="/staff/attendees/{{ event.id }}/promote/{{ r.id }}" style="display:inline">
-              <button type="submit" class="btn btn-sm btn-success">Promote</button>
-            </form>
-          {% endif %}
-          {% if r.status in ['Confirmed', 'Waitlisted'] %}
-            <form method="POST" action="/staff/attendees/{{ event.id }}/cancel/{{ r.id }}" style="display:inline"
-                  onsubmit="return confirm('Cancel this registration?')">
-              <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
-            </form>
-          {% endif %}
-          {% if r.status == 'Cancelled' %}
-            <form method="POST" action="/staff/attendees/{{ event.id }}/uncancel/{{ r.id }}" style="display:inline"
-                  onsubmit="return confirm('Restore this registration to Confirmed?')">
-              <button type="submit" class="btn btn-sm btn-secondary">Restore</button>
-            </form>
-          {% endif %}
-          {% if r.status == 'CheckedIn' %}
-            <form method="POST" action="/staff/checkin/undo" style="display:inline"
-                  onsubmit="return confirm('Undo this check-in?')">
-              <input type="hidden" name="registration_id" value="{{ r.id }}">
-              <input type="hidden" name="event_id" value="{{ event.id }}">
-              <button type="submit" class="btn btn-sm btn-warning">Undo Check-in</button>
-            </form>
-          {% endif %}
-        </td>
-        {% endif %}
-      </tr>
-      {% else %}
-      <tr><td colspan="9" class="text-center text-muted">No registrations found.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="text-center text-muted">No registrations found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endblock %}

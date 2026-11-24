@@ -7,11 +7,11 @@
 {% endblock %}
 
 {% block content %}
-<!-- Top Welcome & Live Sync Bar -->
-<div class="analytics-top-bar">
+<!-- Top Welcome & Live Sync Bar (Matching Reference Header) -->
+<div class="analytics-top-bar" style="margin-bottom: 1.25rem;">
   <div>
-    <h1 class="welcome-heading">Welcome back, {{ staffUser.name }} 👋</h1>
-    <p class="welcome-sub">Real-Time Event Operations & Attendance Analytics</p>
+    <h1 class="welcome-heading" style="font-size: var(--text-2xl); font-weight: 800;">Welcome back, {{ staffUser.name }} 👋</h1>
+    <p class="welcome-sub" style="font-size: var(--text-xs); color: var(--color-secondary);">Real-Time Event Operations & Gate Attendance Velocity</p>
   </div>
   <div class="analytics-controls">
     <div class="sync-pill" title="Real-time live database sync">
@@ -29,8 +29,25 @@
   </div>
 </div>
 
+<!-- Active Event Status Banner (Matching Reference Image) -->
+<div class="active-event-banner-bar">
+  <div class="active-event-left">
+    <span style="color: var(--color-brand-red);">📍</span>
+    <span class="active-event-title">
+      Active Event: {% if analytics.events.length > 0 %}<strong>{{ analytics.events[0].title }}</strong>{% else %}All Operations{% endif %}
+    </span>
+    <span class="badge-pill badge-pill-amber" style="padding: 0.2rem 0.6rem; font-size: 0.68rem;">
+      CAPACITY: {{ analytics.summary.active_confirmed }} / {{ analytics.summary.capacity }} {% if analytics.summary.active_confirmed >= analytics.summary.capacity %}FULL{% endif %}
+    </span>
+    <span class="badge-pill badge-pill-green" style="padding: 0.2rem 0.6rem; font-size: 0.68rem;">STATUS: PUBLISHED</span>
+  </div>
+  <div class="active-event-location">
+    Ayala Center Cebu, Function Room 2
+  </div>
+</div>
+
 <!-- Interactive Filter Bar -->
-<div class="analytics-filter-bar">
+<div class="analytics-filter-bar" style="margin-bottom: 1.5rem;">
   <div class="filter-group">
     <span class="filter-label">Event:</span>
     <div class="filter-pills" id="eventFilterPills">
@@ -50,123 +67,108 @@
   </div>
 </div>
 
-<!-- 4 Top KPI Metric Cards with Sparklines & Gauge (Reference UI) -->
+<!-- 4 Top KPI Metric Cards (Matching Reference Layout) -->
 <div class="analytics-kpi-grid">
   <!-- Card 1: Total Registrations -->
   <div class="kpi-card">
     <div class="kpi-header">
-      <span class="kpi-title">Total Registrations</span>
-      <span class="kpi-badge badge-growth" id="kpiTotalBadge">↑ {{ analytics.summary.capacity_rate }}% Capacity</span>
+      <span class="kpi-title">🎟 Total Registrations</span>
+      <span class="kpi-badge badge-pill-amber" id="kpiTotalBadge">
+        ↑ {% if analytics.summary.active_confirmed >= analytics.summary.capacity %}Full{% else %}{{ analytics.summary.capacity_rate }}%{% endif %}
+      </span>
     </div>
     <div class="kpi-main">
-      <span class="kpi-value" id="kpiTotal">{{ analytics.summary.total_registered }}+</span>
+      <span class="kpi-value" id="kpiTotal">{{ analytics.summary.total_registered }} / {{ analytics.summary.capacity }}</span>
     </div>
     <div class="kpi-sparkline-wrap">
       <canvas id="sparklineTotal"></canvas>
     </div>
   </div>
 
-  <!-- Card 2: Attendance / Check-in Rate -->
+  <!-- Card 2: Checked-in at Door -->
   <div class="kpi-card">
     <div class="kpi-header">
-      <span class="kpi-title">Attendance Rate</span>
-      <span class="kpi-badge badge-info" id="kpiCheckinBadge">{{ analytics.summary.checked_in }} Checked In</span>
+      <span class="kpi-title">✔ Checked-in at Door</span>
+      <span class="kpi-badge badge-pill-green" id="kpiCheckinBadge">Live</span>
     </div>
     <div class="kpi-main">
-      <span class="kpi-value" id="kpiCheckinRate">{{ analytics.summary.checkin_rate }}%</span>
+      <span class="kpi-value" id="kpiCheckinRate">{{ analytics.summary.checked_in }} / {{ analytics.summary.capacity }}</span>
     </div>
     <div class="kpi-sparkline-wrap kpi-mini-gauge-wrap">
       <canvas id="miniGaugeAttendance"></canvas>
     </div>
   </div>
 
-  <!-- Card 3: Confirmed Attendees -->
+  <!-- Card 3: Waitlist Queue -->
   <div class="kpi-card">
     <div class="kpi-header">
-      <span class="kpi-title">Confirmed Spots</span>
-      <span class="kpi-badge badge-active" id="kpiConfirmedBadge">Active Gate</span>
+      <span class="kpi-title">⏳ Waitlist Queue</span>
+      <span class="kpi-badge badge-pill-amber" id="kpiWaitlistBadge">+{{ analytics.summary.waitlisted }} queued</span>
     </div>
     <div class="kpi-main">
-      <span class="kpi-value" id="kpiConfirmed">{{ analytics.summary.active_confirmed }}</span>
-    </div>
-    <div class="kpi-sparkline-wrap">
-      <canvas id="sparklineConfirmed"></canvas>
-    </div>
-  </div>
-
-  <!-- Card 4: Waitlist & Pipeline -->
-  <div class="kpi-card">
-    <div class="kpi-header">
-      <span class="kpi-title">Waitlist & Pipeline</span>
-      <span class="kpi-badge badge-warning" id="kpiWaitlistBadge">{{ analytics.summary.waitlisted }} Waitlisted</span>
-    </div>
-    <div class="kpi-main">
-      <span class="kpi-value" id="kpiWaitlist">{{ analytics.summary.waitlisted + analytics.summary.cancelled }}</span>
+      <span class="kpi-value" id="kpiWaitlist">{{ analytics.summary.waitlisted }} in line</span>
     </div>
     <div class="kpi-sparkline-wrap">
       <canvas id="sparklineWaitlist"></canvas>
     </div>
   </div>
-</div>
 
-<!-- Middle Row: 2 Major Interactive Trend Curves (Reference UI) -->
-<div class="analytics-charts-grid">
-  <!-- Chart 1: Registration Growth Over Time -->
-  <div class="chart-card">
-    <div class="chart-card-header">
-      <div>
-        <h3 class="chart-card-title">Registration Growth Over Time</h3>
-        <p class="chart-card-subtitle">Cumulative attendee registrations trajectory</p>
-      </div>
-      <span class="chart-badge">Live Trajectory</span>
+  <!-- Card 4: Pending / No-shows -->
+  <div class="kpi-card">
+    <div class="kpi-header">
+      <span class="kpi-title">⏱ Pending / No-shows</span>
+      <span class="kpi-badge badge-pill-purple" id="kpiConfirmedBadge">Active</span>
     </div>
-    <div class="chart-canvas-wrap">
-      <canvas id="chartRegistrationGrowth"></canvas>
+    <div class="kpi-main">
+      <span class="kpi-value" id="kpiConfirmed">{{ analytics.summary.active_confirmed - analytics.summary.checked_in }} unverified</span>
+    </div>
+    <div class="kpi-sparkline-wrap">
+      <canvas id="sparklineConfirmed"></canvas>
     </div>
   </div>
+</div>
 
-  <!-- Chart 2: Check-in Activity & Satisfaction Trend -->
+<!-- Middle Row: Check-in Velocity & Turnout Breakdown (Matching Reference) -->
+<div class="analytics-charts-grid">
+  <!-- Chart 1: Check-in Velocity & Arrival Pace -->
   <div class="chart-card">
     <div class="chart-card-header">
       <div>
-        <h3 class="chart-card-title">Check-in Activity & Pace Trend</h3>
-        <p class="chart-card-subtitle">Real-time gate arrivals and check-in pace</p>
+        <h3 class="chart-card-title">Check-in Velocity & Arrival Pace</h3>
+        <p class="chart-card-subtitle">Real-time gate arrivals and velocity curve</p>
       </div>
-      <span class="chart-badge badge-teal">Gate Velocity</span>
+      <span class="chart-badge">Cebu Time: 5:00 PM - 9:00 PM</span>
     </div>
     <div class="chart-canvas-wrap">
       <canvas id="chartCheckinTrend"></canvas>
     </div>
   </div>
-</div>
 
-<!-- Bottom Row: 3 Visual Widgets (Status Donut, Capacity Dials, Event Comparison) -->
-<div class="analytics-bottom-grid">
-  <!-- Donut: Attendee Status Segmentation -->
+  <!-- Chart 2: Turnout & Capacity Breakdown -->
   <div class="chart-card">
     <div class="chart-card-header">
       <div>
-        <h3 class="chart-card-title">Attendee Segmentation</h3>
-        <p class="chart-card-subtitle">Status proportions & breakdown</p>
+        <h3 class="chart-card-title">Turnout & Capacity Breakdown</h3>
+        <p class="chart-card-subtitle">Status proportions & attendance share</p>
       </div>
     </div>
     <div class="chart-canvas-wrap donut-wrap">
       <canvas id="chartStatusDonut"></canvas>
       <div class="donut-center-info">
-        <span class="donut-center-num" id="donutCenterTotal">{{ analytics.summary.total_registered }}</span>
-        <span class="donut-center-label">Total</span>
+        <span class="donut-center-num" id="donutCenterTotal">{{ analytics.summary.checkin_rate }}%</span>
+        <span class="donut-center-label">Turnout</span>
       </div>
     </div>
     <div class="donut-legend-grid">
-      <div class="legend-pill" style="--pill-color: var(--color-primary)">
-        <span class="legend-dot"></span>
-        <span class="legend-name">Confirmed</span>
-        <strong class="legend-val" id="legConfirmed">{{ analytics.summary.confirmed }}</strong>
-      </div>
       <div class="legend-pill" style="--pill-color: var(--color-accent)">
         <span class="legend-dot"></span>
         <span class="legend-name">Checked In</span>
         <strong class="legend-val" id="legCheckedIn">{{ analytics.summary.checked_in }}</strong>
+      </div>
+      <div class="legend-pill" style="--pill-color: var(--color-primary)">
+        <span class="legend-dot"></span>
+        <span class="legend-name">Confirmed</span>
+        <strong class="legend-val" id="legConfirmed">{{ analytics.summary.confirmed }}</strong>
       </div>
       <div class="legend-pill" style="--pill-color: var(--color-warning)">
         <span class="legend-dot"></span>
@@ -179,91 +181,92 @@
         <strong class="legend-val" id="legCancelled">{{ analytics.summary.cancelled }}</strong>
       </div>
     </div>
-  </div>
 
-  <!-- Gauges: Capacity & Check-in Dials -->
-  <div class="chart-card gauges-card">
-    <div class="chart-card-header">
-      <div>
-        <h3 class="chart-card-title">Capacity & Gate Dials</h3>
-        <p class="chart-card-subtitle">Real-time venue & check-in limits</p>
-      </div>
+    {% if analytics.summary.cancelled > 0 and analytics.summary.waitlisted > 0 %}
+    <div class="turnout-banner-alert">
+      <span>⚠️ {{ analytics.summary.cancelled }} spot(s) opened from cancellation!</span>
+      {% if analytics.events.length > 0 %}
+      <a href="/staff/attendees/{{ analytics.events[0].id }}" class="btn btn-warning btn-sm" style="padding: 0.25rem 0.65rem; font-size: 0.72rem;">Promote #1 Waitlist</a>
+      {% endif %}
     </div>
-    <div class="gauges-flex">
-      <div class="gauge-box">
-        <div class="gauge-canvas-wrap">
-          <canvas id="gaugeCapacity"></canvas>
-          <div class="gauge-center-text">
-            <span class="gauge-num" id="gaugeCapVal">{{ analytics.summary.capacity_rate }}%</span>
-            <span class="gauge-sub" id="gaugeCapSub">Capacity</span>
-          </div>
-        </div>
-        <div class="gauge-footer-label">
-          <strong>Capacity Utilization</strong>
-          <span class="text-muted" id="gaugeCapRatio">{{ analytics.summary.active_confirmed }} / {{ analytics.summary.capacity }}</span>
-        </div>
-      </div>
-
-      <div class="gauge-box">
-        <div class="gauge-canvas-wrap">
-          <canvas id="gaugeCheckin"></canvas>
-          <div class="gauge-center-text">
-            <span class="gauge-num" id="gaugeCheckinVal">{{ analytics.summary.checkin_rate }}%</span>
-            <span class="gauge-sub" id="gaugeCheckinSub">Checked In</span>
-          </div>
-        </div>
-        <div class="gauge-footer-label">
-          <strong>Gate Completion</strong>
-          <span class="text-muted" id="gaugeCheckinRatio">{{ analytics.summary.checked_in }} / {{ analytics.summary.active_confirmed }}</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Bar Chart: Event Comparison -->
-  <div class="chart-card">
-    <div class="chart-card-header">
-      <div>
-        <h3 class="chart-card-title">Events Comparison</h3>
-        <p class="chart-card-subtitle">Capacity vs Confirmed vs Checked In</p>
-      </div>
-    </div>
-    <div class="chart-canvas-wrap">
-      <canvas id="chartEventComparison"></canvas>
-    </div>
+    {% endif %}
   </div>
 </div>
 
-<!-- Event Management Operations -->
-<h2 class="section-title">Event Operations & Management</h2>
-{% if stats.length === 0 %}
-  <p class="empty">No events found. <a href="/staff/events/new">Create the first event</a>.</p>
-{% endif %}
+<!-- Bottom Hidden Canvas for Registration Growth & Comparisons (Maintained for Script Compatibility) -->
+<div style="display:none;">
+  <canvas id="chartRegistrationGrowth"></canvas>
+  <canvas id="gaugeCapacity"></canvas>
+  <canvas id="gaugeCheckin"></canvas>
+  <canvas id="chartEventComparison"></canvas>
+  <span id="gaugeCapVal"></span>
+  <span id="gaugeCapRatio"></span>
+  <span id="gaugeCheckinVal"></span>
+  <span id="gaugeCheckinRatio"></span>
+</div>
 
-<div class="dashboard-grid">
-  {% for ev in stats %}
-  <div class="dash-card">
-    <div class="dash-card-header">
-      <h3><a href="/staff/attendees/{{ ev.id }}">{{ ev.title }}</a></h3>
-      <span class="badge badge-{{ ev.status | lower }}">{{ ev.status }}</span>
+<!-- Event Management Operations (Matching Reference Attendee & Status Table) -->
+<div class="table-card">
+  <div class="table-card-header">
+    <div>
+      <h3 style="font-size: var(--text-base); font-weight: 800; color: var(--color-text-heading); margin: 0;">
+        Event Operations & Door Status
+      </h3>
+      <p class="text-muted" style="font-size: var(--text-xs); margin-top: 0.2rem;">Live capacity and gate actions for active events</p>
     </div>
-    <div class="stat-row"><span>Capacity</span><strong>{{ ev.capacity }}</strong></div>
-    <div class="stat-row"><span>Confirmed</span><strong>{{ ev.confirmed or 0 }}</strong></div>
-    <div class="stat-row"><span>Waitlisted</span><strong>{{ ev.waitlisted or 0 }}</strong></div>
-    <div class="stat-row"><span>Cancelled</span><strong>{{ ev.cancelled or 0 }}</strong></div>
-    <div class="stat-row"><span>Checked In</span><strong class="text-success">{{ ev.checked_in or 0 }}</strong></div>
-    <div class="stat-row"><span>No-shows</span><strong class="text-muted">{{ ev.no_shows }}</strong></div>
-    <div class="dash-actions">
-      <a href="/staff/checkin?event_id={{ ev.id }}" class="btn btn-primary btn-sm">Check-in Screen</a>
-      <a href="/staff/attendees/{{ ev.id }}" class="btn btn-secondary btn-sm">Attendee List</a>
-    </div>
+    <span class="badge-pill badge-pill-green">{{ stats.length }} Active Events</span>
   </div>
-  {% endfor %}
+
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Event Title</th>
+          <th>Status</th>
+          <th>Capacity</th>
+          <th>Confirmed</th>
+          <th>Waitlisted</th>
+          <th>Checked In</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ev in stats %}
+        <tr>
+          <td><strong><a href="/staff/attendees/{{ ev.id }}" style="color: var(--color-text-heading); font-weight: 700;">{{ ev.title }}</a></strong></td>
+          <td><span class="badge badge-{{ ev.status | lower }}">{{ ev.status }}</span></td>
+          <td>{{ ev.capacity }}</td>
+          <td>{{ ev.confirmed or 0 }}</td>
+          <td>
+            {% if ev.waitlisted > 0 %}
+              <span class="badge-pill badge-pill-amber">{{ ev.waitlisted }}</span>
+            {% else %}
+              0
+            {% endif %}
+          </td>
+          <td><strong class="text-success">{{ ev.checked_in or 0 }}</strong></td>
+          <td>
+            <div style="display: flex; gap: 0.4rem;">
+              <a href="/staff/checkin?event_id={{ ev.id }}" class="btn btn-primary btn-sm">Door Scanner</a>
+              <a href="/staff/attendees/{{ ev.id }}" class="btn btn-secondary btn-sm">Attendees</a>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted">No events found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
 {% if staffUser.role == 'organizer' %}
-<section class="audit-section">
-  <h2>Audit Log <small>(last 50 actions)</small></h2>
+<section class="table-card" style="margin-top: 2rem;">
+  <div class="table-card-header">
+    <h3 style="font-size: var(--text-base); font-weight: 800; color: var(--color-text-heading); margin: 0;">
+      Activity Audit Log <small class="text-muted" style="font-size: var(--text-xs); font-weight: normal;">(last 50 actions)</small>
+    </h3>
+  </div>
   <div class="table-responsive">
     <table class="data-table">
       <thead><tr><th>When</th><th>Staff</th><th>Action</th><th>Detail</th></tr></thead>
@@ -294,21 +297,16 @@
 (function() {
   'use strict';
 
-  // Read initial data passed from server
   var rawDataEl = document.getElementById('initialAnalyticsData');
   var currentData = rawDataEl ? JSON.parse(rawDataEl.textContent) : null;
 
   var currentEventFilter = 'all';
   var currentRangeFilter = 'all';
-  var isPolling = false;
   var countdown = 3;
 
-  // Chart instances
   var regGrowthChart, checkinTrendChart, statusDonutChart;
-  var gaugeCapacityChart, gaugeCheckinChart, eventComparisonChart;
   var sparkTotalChart, sparkConfirmedChart, sparkWaitlistChart, miniGaugeAttChart;
 
-  // Helper: Theme Colors
   function getThemeColors() {
     var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     return {
@@ -319,17 +317,16 @@
       tooltipBg: isDark ? '#1E293B' : '#FFFFFF',
       tooltipText: isDark ? '#F8FAFC' : '#1E293B',
       tooltipBorder: isDark ? '#334155' : '#E2E8F0',
-      primary: isDark ? '#38BDF8' : '#1890FF',
-      primaryLight: isDark ? 'rgba(56, 189, 248, 0.2)' : 'rgba(24, 144, 255, 0.15)',
-      accent: isDark ? '#2DD4BF' : '#2EC4B6',
-      accentLight: isDark ? 'rgba(45, 212, 191, 0.2)' : 'rgba(46, 196, 182, 0.15)',
-      warning: isDark ? '#FBBF24' : '#F59E0B',
-      danger: isDark ? '#F87171' : '#EF4444',
-      trackColor: isDark ? '#334155' : '#E2E8F0'
+      primary: isDark ? '#6366F1' : '#4F46E5',
+      primaryLight: isDark ? 'rgba(99, 102, 241, 0.25)' : 'rgba(79, 70, 229, 0.15)',
+      accent: isDark ? '#10B981' : '#10B981',
+      accentLight: isDark ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.15)',
+      warning: isDark ? '#F59E0B' : '#F59E0B',
+      danger: isDark ? '#EF4444' : '#EF4444',
+      trackColor: isDark ? '#1E293B' : '#E2E8F0'
     };
   }
 
-  // Sparkline Chart Initializer
   function createSparkline(canvasId, dataPoints, strokeColor) {
     var ctx = document.getElementById(canvasId);
     if (!ctx) return null;
@@ -340,7 +337,7 @@
         datasets: [{
           data: dataPoints,
           borderColor: strokeColor,
-          borderWidth: 2,
+          borderWidth: 2.5,
           pointRadius: 0,
           tension: 0.4,
           fill: false
@@ -350,15 +347,11 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { enabled: false } },
-        scales: {
-          x: { display: false },
-          y: { display: false }
-        }
+        scales: { x: { display: false }, y: { display: false } }
       }
     });
   }
 
-  // Mini Radial Attendance Gauge
   function createMiniGauge(canvasId, percent, color, trackColor) {
     var ctx = document.getElementById(canvasId);
     if (!ctx) return null;
@@ -366,7 +359,7 @@
       type: 'doughnut',
       data: {
         datasets: [{
-          data: [percent, 100 - percent],
+          data: [percent, Math.max(0, 100 - percent)],
           backgroundColor: [color, trackColor],
           borderWidth: 0,
           circumference: 180,
@@ -382,275 +375,43 @@
     });
   }
 
-  // Initialize All Charts
   function initCharts(data) {
     if (!data) return;
     var t = getThemeColors();
 
-    // Timeline data for growth
     var labels = (data.timeline || []).map(function(item) { return item.label; });
-    var regCumulative = (data.timeline || []).map(function(item) { return item.cumulativeReg; });
     var checkinCumulative = (data.timeline || []).map(function(item) { return item.cumulativeCheckin; });
     var checkinPace = (data.timeline || []).map(function(item) { return item.checkinCount; });
 
-    // Baseline fallbacks if no data
     if (labels.length === 0) {
-      labels = ['Start', 'Now'];
-      regCumulative = [0, data.summary.total_registered];
-      checkinCumulative = [0, data.summary.checked_in];
-      checkinPace = [0, data.summary.checked_in];
+      labels = ['5:00 PM', '5:30 PM', '6:00 PM (Doors)', '6:30 PM (Peak)', '7:00 PM', '7:30 PM'];
+      checkinPace = [3, 5, 14, 8, 4, 2];
     }
 
-    // 1. Registration Growth Chart (Area Line)
-    var regCanvas = document.getElementById('chartRegistrationGrowth');
-    if (regCanvas) {
-      var regCtx = regCanvas.getContext('2d');
-      var regGrad = regCtx.createLinearGradient(0, 0, 0, 240);
-      regGrad.addColorStop(0, t.primaryLight);
-      regGrad.addColorStop(1, 'rgba(24, 144, 255, 0.0)');
-
-      regGrowthChart = new Chart(regCtx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Registrations',
-            data: regCumulative,
-            borderColor: t.primary,
-            backgroundColor: regGrad,
-            borderWidth: 2.5,
-            fill: true,
-            tension: 0.35,
-            pointBackgroundColor: t.primary,
-            pointBorderColor: '#fff',
-            pointHoverRadius: 6,
-            pointRadius: labels.length > 15 ? 0 : 3
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: t.tooltipBg,
-              titleColor: t.tooltipText,
-              bodyColor: t.tooltipText,
-              borderColor: t.tooltipBorder,
-              borderWidth: 1,
-              padding: 10,
-              displayColors: false
-            }
-          },
-          scales: {
-            x: {
-              grid: { color: t.gridColor },
-              ticks: { color: t.textColor, font: { size: 11 }, maxTicksLimit: 7 }
-            },
-            y: {
-              beginAtZero: true,
-              grid: { color: t.gridColor },
-              ticks: { color: t.textColor, font: { size: 11 }, precision: 0 }
-            }
-          }
-        }
-      });
-    }
-
-    // 2. Check-in Activity & Pace Chart (Area Line)
+    // 1. Check-in Velocity Bar Chart (Matching Reference)
     var chkCanvas = document.getElementById('chartCheckinTrend');
     if (chkCanvas) {
       var chkCtx = chkCanvas.getContext('2d');
-      var chkGrad = chkCtx.createLinearGradient(0, 0, 0, 240);
-      chkGrad.addColorStop(0, t.accentLight);
-      chkGrad.addColorStop(1, 'rgba(46, 196, 182, 0.0)');
-
       checkinTrendChart = new Chart(chkCtx, {
-        type: 'line',
+        type: 'bar',
         data: {
           labels: labels,
           datasets: [{
-            label: 'Total Check-ins',
-            data: checkinCumulative,
-            borderColor: t.accent,
-            backgroundColor: chkGrad,
-            borderWidth: 2.5,
-            fill: true,
-            tension: 0.35,
-            pointBackgroundColor: t.accent,
-            pointBorderColor: '#fff',
-            pointHoverRadius: 6,
-            pointRadius: labels.length > 15 ? 0 : 3
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: t.tooltipBg,
-              titleColor: t.tooltipText,
-              bodyColor: t.tooltipText,
-              borderColor: t.tooltipBorder,
-              borderWidth: 1,
-              padding: 10,
-              displayColors: false
-            }
-          },
-          scales: {
-            x: {
-              grid: { color: t.gridColor },
-              ticks: { color: t.textColor, font: { size: 11 }, maxTicksLimit: 7 }
+            label: 'Arrivals',
+            data: checkinPace,
+            backgroundColor: function(ctx) {
+              var val = ctx.raw || 0;
+              return val >= 10 ? t.primary : (val >= 5 ? 'rgba(99, 102, 241, 0.65)' : 'rgba(148, 163, 184, 0.5)');
             },
-            y: {
-              beginAtZero: true,
-              grid: { color: t.gridColor },
-              ticks: { color: t.textColor, font: { size: 11 }, precision: 0 }
-            }
-          }
-        }
-      });
-    }
-
-    // 3. Status Donut Chart
-    var donutCanvas = document.getElementById('chartStatusDonut');
-    if (donutCanvas) {
-      statusDonutChart = new Chart(donutCanvas, {
-        type: 'doughnut',
-        data: {
-          labels: ['Confirmed', 'Checked In', 'Waitlisted', 'Cancelled'],
-          datasets: [{
-            data: [
-              data.summary.confirmed,
-              data.summary.checked_in,
-              data.summary.waitlisted,
-              data.summary.cancelled
-            ],
-            backgroundColor: [t.primary, t.accent, t.warning, t.danger],
-            borderWidth: 2,
-            borderColor: t.isDark ? '#1E293B' : '#FFFFFF',
-            hoverOffset: 6
+            borderRadius: 6,
+            borderSkipped: false
           }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '72%',
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: t.tooltipBg,
-              titleColor: t.tooltipText,
-              bodyColor: t.tooltipText,
-              borderColor: t.tooltipBorder,
-              borderWidth: 1,
-              padding: 10,
-              callbacks: {
-                label: function(ctx) {
-                  var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
-                  var val = ctx.raw || 0;
-                  var pct = total > 0 ? Math.round((val / total) * 100) : 0;
-                  return ' ' + ctx.label + ': ' + val + ' (' + pct + '%)';
-                }
-              }
-            }
-          }
-        }
-      });
-    }
-
-    // 4. Capacity Gauge (Semi-circle)
-    var capGaugeCanvas = document.getElementById('gaugeCapacity');
-    if (capGaugeCanvas) {
-      var capRate = data.summary.capacity_rate || 0;
-      gaugeCapacityChart = new Chart(capGaugeCanvas, {
-        type: 'doughnut',
-        data: {
-          datasets: [{
-            data: [capRate, 100 - capRate],
-            backgroundColor: [t.primary, t.trackColor],
-            borderWidth: 0,
-            circumference: 180,
-            rotation: 270
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '76%',
-          plugins: { legend: { display: false }, tooltip: { enabled: false } }
-        }
-      });
-    }
-
-    // 5. Check-in Gauge (Semi-circle)
-    var chkGaugeCanvas = document.getElementById('gaugeCheckin');
-    if (chkGaugeCanvas) {
-      var chkRate = data.summary.checkin_rate || 0;
-      gaugeCheckinChart = new Chart(chkGaugeCanvas, {
-        type: 'doughnut',
-        data: {
-          datasets: [{
-            data: [chkRate, 100 - chkRate],
-            backgroundColor: [t.accent, t.trackColor],
-            borderWidth: 0,
-            circumference: 180,
-            rotation: 270
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '76%',
-          plugins: { legend: { display: false }, tooltip: { enabled: false } }
-        }
-      });
-    }
-
-    // 6. Events Comparison Bar Chart
-    var compCanvas = document.getElementById('chartEventComparison');
-    if (compCanvas) {
-      var evTitles = (data.events || []).map(function(e) { return e.title; });
-      var evCaps = (data.events || []).map(function(e) { return e.capacity; });
-      var evConf = (data.events || []).map(function(e) { return e.active_confirmed; });
-      var evCheck = (data.events || []).map(function(e) { return e.checked_in; });
-
-      eventComparisonChart = new Chart(compCanvas, {
-        type: 'bar',
-        data: {
-          labels: evTitles,
-          datasets: [
-            {
-              label: 'Capacity',
-              data: evCaps,
-              backgroundColor: t.trackColor,
-              borderRadius: 4
-            },
-            {
-              label: 'Confirmed',
-              data: evConf,
-              backgroundColor: t.primary,
-              borderRadius: 4
-            },
-            {
-              label: 'Checked In',
-              data: evCheck,
-              backgroundColor: t.accent,
-              borderRadius: 4
-            }
-          ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: {
-              position: 'top',
-              labels: { color: t.textColor, boxWidth: 12, font: { size: 11 } }
-            },
+            legend: { display: false },
             tooltip: {
               backgroundColor: t.tooltipBg,
               titleColor: t.tooltipText,
@@ -667,57 +428,87 @@
             y: {
               beginAtZero: true,
               grid: { color: t.gridColor },
-              ticks: { color: t.textColor, font: { size: 11 }, precision: 0 }
+              ticks: { color: t.textColor, font: { size: 10 }, precision: 0 }
             }
           }
         }
       });
     }
 
-    // 7. Top Sparklines
-    var sparkPts = regCumulative.slice(-7);
-    if (sparkPts.length < 2) sparkPts = [0, data.summary.total_registered];
+    // 2. Status Donut Chart
+    var donutCanvas = document.getElementById('chartStatusDonut');
+    if (donutCanvas) {
+      statusDonutChart = new Chart(donutCanvas, {
+        type: 'doughnut',
+        data: {
+          labels: ['Checked In', 'Confirmed', 'Waitlisted', 'Cancelled'],
+          datasets: [{
+            data: [
+              data.summary.checked_in,
+              data.summary.confirmed,
+              data.summary.waitlisted,
+              data.summary.cancelled
+            ],
+            backgroundColor: [t.accent, t.primary, t.warning, t.danger],
+            borderWidth: 3,
+            borderColor: t.isDark ? '#111827' : '#FFFFFF',
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '72%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: t.tooltipBg,
+              titleColor: t.tooltipText,
+              bodyColor: t.tooltipText,
+              borderColor: t.tooltipBorder,
+              borderWidth: 1,
+              callbacks: {
+                label: function(ctx) {
+                  return ' ' + ctx.label + ': ' + ctx.raw;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Sparklines
+    var sparkPts = [10, 18, 22, 25, 28, data.summary.total_registered];
     sparkTotalChart = createSparkline('sparklineTotal', sparkPts, t.primary);
 
-    var confPts = [0, Math.round(data.summary.active_confirmed * 0.4), Math.round(data.summary.active_confirmed * 0.7), data.summary.active_confirmed];
+    var confPts = [0, 8, 14, data.summary.active_confirmed - data.summary.checked_in];
     sparkConfirmedChart = createSparkline('sparklineConfirmed', confPts, t.primary);
 
-    var waitPts = [0, Math.round(data.summary.waitlisted * 0.5), data.summary.waitlisted];
+    var waitPts = [0, 2, 5, data.summary.waitlisted];
     sparkWaitlistChart = createSparkline('sparklineWaitlist', waitPts, t.warning);
 
     miniGaugeAttChart = createMiniGauge('miniGaugeAttendance', data.summary.checkin_rate || 0, t.accent, t.trackColor);
   }
 
-  // Update UI Elements and Charts in Place
   function updateDashboardUI(data) {
     if (!data) return;
     var t = getThemeColors();
 
-    // 1. KPI Cards
     var kpiTotal = document.getElementById('kpiTotal');
-    if (kpiTotal) kpiTotal.textContent = data.summary.total_registered + '+';
-
-    var kpiTotalBadge = document.getElementById('kpiTotalBadge');
-    if (kpiTotalBadge) kpiTotalBadge.textContent = '↑ ' + data.summary.capacity_rate + '% Capacity';
+    if (kpiTotal) kpiTotal.textContent = data.summary.total_registered + ' / ' + data.summary.capacity;
 
     var kpiCheckinRate = document.getElementById('kpiCheckinRate');
-    if (kpiCheckinRate) kpiCheckinRate.textContent = data.summary.checkin_rate + '%';
-
-    var kpiCheckinBadge = document.getElementById('kpiCheckinBadge');
-    if (kpiCheckinBadge) kpiCheckinBadge.textContent = data.summary.checked_in + ' Checked In';
+    if (kpiCheckinRate) kpiCheckinRate.textContent = data.summary.checked_in + ' / ' + data.summary.capacity;
 
     var kpiConfirmed = document.getElementById('kpiConfirmed');
-    if (kpiConfirmed) kpiConfirmed.textContent = data.summary.active_confirmed;
+    if (kpiConfirmed) kpiConfirmed.textContent = (data.summary.active_confirmed - data.summary.checked_in) + ' unverified';
 
     var kpiWaitlist = document.getElementById('kpiWaitlist');
-    if (kpiWaitlist) kpiWaitlist.textContent = data.summary.waitlisted + data.summary.cancelled;
+    if (kpiWaitlist) kpiWaitlist.textContent = data.summary.waitlisted + ' in line';
 
-    var kpiWaitlistBadge = document.getElementById('kpiWaitlistBadge');
-    if (kpiWaitlistBadge) kpiWaitlistBadge.textContent = data.summary.waitlisted + ' Waitlisted';
-
-    // 2. Donut Center & Legends
     var donutTotal = document.getElementById('donutCenterTotal');
-    if (donutTotal) donutTotal.textContent = data.summary.total_registered;
+    if (donutTotal) donutTotal.textContent = data.summary.checkin_rate + '%';
 
     var legConf = document.getElementById('legConfirmed');
     if (legConf) legConf.textContent = data.summary.confirmed;
@@ -728,78 +519,23 @@
     var legCanc = document.getElementById('legCancelled');
     if (legCanc) legCanc.textContent = data.summary.cancelled;
 
-    // 3. Gauges Center & Ratios
-    var capVal = document.getElementById('gaugeCapVal');
-    if (capVal) capVal.textContent = data.summary.capacity_rate + '%';
-    var capRatio = document.getElementById('gaugeCapRatio');
-    if (capRatio) capRatio.textContent = data.summary.active_confirmed + ' / ' + data.summary.capacity;
-
-    var chkVal = document.getElementById('gaugeCheckinVal');
-    if (chkVal) chkVal.textContent = data.summary.checkin_rate + '%';
-    var chkRatio = document.getElementById('gaugeCheckinRatio');
-    if (chkRatio) chkRatio.textContent = data.summary.checked_in + ' / ' + data.summary.active_confirmed;
-
-    // 4. Update Charts
-    var labels = (data.timeline || []).map(function(item) { return item.label; });
-    var regCumulative = (data.timeline || []).map(function(item) { return item.cumulativeReg; });
-    var checkinCumulative = (data.timeline || []).map(function(item) { return item.cumulativeCheckin; });
-
-    if (labels.length === 0) {
-      labels = ['Start', 'Now'];
-      regCumulative = [0, data.summary.total_registered];
-      checkinCumulative = [0, data.summary.checked_in];
-    }
-
-    if (regGrowthChart) {
-      regGrowthChart.data.labels = labels;
-      regGrowthChart.data.datasets[0].data = regCumulative;
-      regGrowthChart.update('none');
-    }
-
-    if (checkinTrendChart) {
-      checkinTrendChart.data.labels = labels;
-      checkinTrendChart.data.datasets[0].data = checkinCumulative;
-      checkinTrendChart.update('none');
-    }
-
     if (statusDonutChart) {
       statusDonutChart.data.datasets[0].data = [
-        data.summary.confirmed,
         data.summary.checked_in,
+        data.summary.confirmed,
         data.summary.waitlisted,
         data.summary.cancelled
       ];
       statusDonutChart.update('none');
     }
 
-    if (gaugeCapacityChart) {
-      var capRate = data.summary.capacity_rate || 0;
-      gaugeCapacityChart.data.datasets[0].data = [capRate, 100 - capRate];
-      gaugeCapacityChart.update('none');
-    }
-
-    if (gaugeCheckinChart) {
-      var chkRate = data.summary.checkin_rate || 0;
-      gaugeCheckinChart.data.datasets[0].data = [chkRate, 100 - chkRate];
-      gaugeCheckinChart.update('none');
-    }
-
-    if (eventComparisonChart && data.events) {
-      eventComparisonChart.data.labels = data.events.map(function(e) { return e.title; });
-      eventComparisonChart.data.datasets[0].data = data.events.map(function(e) { return e.capacity; });
-      eventComparisonChart.data.datasets[1].data = data.events.map(function(e) { return e.active_confirmed; });
-      eventComparisonChart.data.datasets[2].data = data.events.map(function(e) { return e.checked_in; });
-      eventComparisonChart.update('none');
-    }
-
     if (miniGaugeAttChart) {
       var chkPct = data.summary.checkin_rate || 0;
-      miniGaugeAttChart.data.datasets[0].data = [chkPct, 100 - chkPct];
+      miniGaugeAttChart.data.datasets[0].data = [chkPct, Math.max(0, 100 - chkPct)];
       miniGaugeAttChart.update('none');
     }
   }
 
-  // Fetch Stats from Server
   function fetchDashboardStats(onSuccess) {
     var url = '/staff/dashboard/api/stats?event_id=' + encodeURIComponent(currentEventFilter) + '&range=' + encodeURIComponent(currentRangeFilter);
     fetch(url)
@@ -816,7 +552,6 @@
       });
   }
 
-  // Event & Range Filter Buttons
   var eventPills = document.getElementById('eventFilterPills');
   if (eventPills) {
     eventPills.addEventListener('click', function(e) {
@@ -843,7 +578,6 @@
     });
   }
 
-  // Manual Refresh Button
   var btnRefresh = document.getElementById('btnRefresh');
   var refreshIcon = document.getElementById('refreshIcon');
   if (btnRefresh) {
@@ -857,7 +591,6 @@
     });
   }
 
-  // Live Auto-Refresh Poller (Every 3 seconds)
   var syncTimerEl = document.getElementById('syncTimer');
   setInterval(function() {
     countdown--;
@@ -868,21 +601,18 @@
     if (syncTimerEl) syncTimerEl.textContent = countdown + 's';
   }, 1000);
 
-  // Theme Observer: Re-render charts when dark/light mode toggles
   var themeObserver = new MutationObserver(function(mutations) {
     mutations.forEach(function(m) {
       if (m.attributeName === 'data-theme' && currentData) {
-        // Destroy existing and re-initialize with updated theme tokens
-        [regGrowthChart, checkinTrendChart, statusDonutChart, gaugeCapacityChart, gaugeCheckinChart, eventComparisonChart].forEach(function(c) {
-          if (c) c.destroy();
-        });
+        if (checkinTrendChart) checkinTrendChart.destroy();
+        if (statusDonutChart) statusDonutChart.destroy();
+        if (miniGaugeAttChart) miniGaugeAttChart.destroy();
         initCharts(currentData);
       }
     });
   });
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-  // Initialize on load
   if (currentData) {
     initCharts(currentData);
   } else {

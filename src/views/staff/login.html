@@ -1,28 +1,39 @@
 {% extends "staff/base_staff.html" %}
 {% block title %}Staff Login — EventReg{% endblock %}
 {% block content %}
-<div class="form-container form-narrow">
-  <a href="/" class="back-link">← Back to Events</a>
-  <h1>Staff Sign In</h1>
-  <p class="text-muted" style="margin-bottom:1.5rem;">Enter your credentials to access the staff panel.</p>
+<div class="form-container form-narrow" style="margin-top: 3rem;">
+  <div style="text-align: center; margin-bottom: 1.25rem;">
+    <div style="width: 44px; height: 44px; background: var(--color-brand-red); border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; color: #FFF; font-size: 1.5rem; box-shadow: 0 4px 14px var(--color-brand-red-glow); margin-bottom: 0.75rem;">
+      ⚡
+    </div>
+    <h1 style="font-size: var(--text-2xl); font-weight: 800; margin: 0;">Staff Sign In</h1>
+    <p class="text-muted" style="margin-top: 0.35rem; font-size: var(--text-sm);">Enter credentials to access door operations & dashboard.</p>
+  </div>
+
   {% if error %}
     <div class="alert alert-danger" role="alert">{{ error }}</div>
   {% endif %}
+
   <form method="POST" action="/staff/login">
     <div class="field">
       <label for="username">Username <span style="color:var(--color-danger)">*</span></label>
-      <input type="text" id="username" name="username" autocomplete="username" required autofocus>
+      <input type="text" id="username" name="username" autocomplete="username" required autofocus placeholder="e.g. organizer or doorstaff">
     </div>
     <div class="field">
       <label for="password">Password <span style="color:var(--color-danger)">*</span></label>
-      <input type="password" id="password" name="password" autocomplete="current-password" required>
+      <input type="password" id="password" name="password" autocomplete="current-password" required placeholder="••••••••">
     </div>
-    <button type="submit" class="btn btn-primary btn-block btn-lg">Sign In →</button>
+    <button type="submit" class="btn btn-cta btn-block btn-lg" style="margin-top: 0.5rem; justify-content: center;">
+      Sign In to Portal →
+    </button>
   </form>
-  <p class="small-note" style="margin-top:1.25rem;text-align:center;">
-    Demo: <code>organizer / organizer123</code> &nbsp;|&nbsp; <code>doorstaff / door123</code>
-  </p>
-  <p class="small-note" style="margin-top:0.75rem;text-align:center;">
+
+  <div style="margin-top: 1.5rem; padding: 0.85rem; border-radius: var(--radius-md); background: var(--color-neutral-bg); border: 1px solid var(--color-border); text-align: center; font-size: var(--text-xs);">
+    <strong style="color: var(--color-text-heading);">Demo Access Credentials:</strong><br>
+    <code style="background: transparent;">organizer / organizer123</code> &nbsp;|&nbsp; <code style="background: transparent;">doorstaff / door123</code>
+  </div>
+
+  <p class="small-note" style="margin-top:1.25rem; text-align:center;">
     <a href="/">← Return to Public Events</a>
   </p>
 </div>

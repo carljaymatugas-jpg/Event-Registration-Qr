@@ -3,11 +3,26 @@
 {% block content %}
 <div class="form-container">
   <a href="/events/{{ event.id }}" class="back-link">← Back to Event</a>
-  <h1>{% if event.is_full %}Join Waitlist{% else %}Register{% endif %}</h1>
-  <p class="text-muted" style="margin-bottom:1.5rem;">
-    <strong>{{ event.title }}</strong><br>
-    📅 {{ event.starts_at | cebuDate }} · 📍 {{ event.venue }}
+
+  <div class="event-badge-row">
+    <span class="badge-pill badge-pill-purple">FREE EVENT</span>
+    <span class="badge-pill badge-pill-green">CEBU TECH COMMUNITY</span>
+    {% if event.is_full %}
+      <span class="badge-pill badge-pill-amber">FULL · WAITLIST ACTIVE</span>
+    {% else %}
+      <span class="badge-pill badge-pill-green">{{ event.spots_left }} OF {{ event.capacity }} SPOTS LEFT</span>
+    {% endif %}
+  </div>
+
+  <h1 style="font-size: var(--text-2xl); font-weight: 800; margin-bottom: 0.5rem;">{{ event.title }}</h1>
+  
+  <p class="text-muted" style="margin-bottom: 1.5rem; font-size: var(--text-sm);">
+    📅 {{ event.starts_at | cebuDate }} &nbsp;·&nbsp; 📍 {{ event.venue }}
   </p>
+
+  <h3 style="font-size: var(--text-md); font-weight: 700; margin-bottom: 1.25rem; color: var(--color-text-heading);">
+    {% if event.is_full %}Waitlist Registration{% else %}Participant Registration{% endif %}
+  </h3>
 
   {% if event.is_full %}
     <div class="alert alert-warning">This event is full. You can join the waitlist and be notified if a spot opens up.</div>
@@ -18,7 +33,7 @@
     <div class="field {% if errors.full_name %}has-error{% endif %}">
       <label for="full_name">Full Name <span style="color:var(--color-danger)">*</span></label>
       <input type="text" id="full_name" name="full_name" value="{{ values.full_name or '' }}"
-             placeholder="Juan dela Cruz" autocomplete="name" required>
+             placeholder="Juan Dela Cruz" autocomplete="name" required>
       {% if errors.full_name %}<span class="field-error" role="alert">{{ errors.full_name }}</span>{% endif %}
     </div>
 
@@ -30,16 +45,21 @@
     </div>
 
     <div class="field {% if errors.mobile %}has-error{% endif %}">
-      <label for="mobile">Mobile Number <span style="color:var(--color-danger)">*</span>
-        <small class="text-muted">(Philippine format: 09XXXXXXXXX)</small>
+      <label for="mobile">Mobile Number (Philippine Format) <span style="color:var(--color-danger)">*</span>
+        <small class="text-muted" style="font-weight: 400;">(e.g. 09XXXXXXXXX)</small>
       </label>
       <input type="tel" id="mobile" name="mobile" value="{{ values.mobile or '' }}"
              placeholder="09171234567" maxlength="11" autocomplete="tel" required>
       {% if errors.mobile %}<span class="field-error" role="alert">{{ errors.mobile }}</span>{% endif %}
     </div>
 
-    <button type="submit" class="btn btn-primary btn-block btn-lg">
-      {{ 'Join Waitlist' if event.is_full else 'Register Now' }}
+    <div class="info-notice-banner">
+      <span>ℹ️</span>
+      <span>Server-verified capacity: Your spot is reserved immediately upon submit.</span>
+    </div>
+
+    <button type="submit" class="btn btn-cta btn-block btn-lg" style="margin-top: 0.5rem; justify-content: center;">
+      {% if event.is_full %}Join Waitlist & Get Pass{% else %}Confirm Registration & Get QR Ticket{% endif %}
     </button>
   </form>
 </div>
