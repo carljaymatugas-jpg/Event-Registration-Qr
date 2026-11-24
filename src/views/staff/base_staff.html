@@ -15,15 +15,18 @@
     <a href="/staff/dashboard" class="brand"><span class="brand-badge">🎟</span> EventReg Staff</a>
     <div class="nav-links">
       <span class="staff-role badge-{{ staffUser.role if staffUser else 'guest' }}">{{ staffUser.role | upper if staffUser else 'Guest' }}</span>
-      <a href="/staff/dashboard">Dashboard</a>
-      <a href="/staff/checkin">Check-in</a>
-      {% if staffUser and staffUser.role == 'organizer' %}
-        <a href="/staff/events">Events</a>
-      {% endif %}
+      <a href="/">← Public Events</a>
       {% if staffUser %}
+        <a href="/staff/dashboard">Dashboard</a>
+        <a href="/staff/checkin">Check-in</a>
+        {% if staffUser.role == 'organizer' %}
+          <a href="/staff/events">Events</a>
+        {% endif %}
         <form method="POST" action="/staff/logout" style="display:inline">
           <button type="submit" class="btn-link">Sign Out</button>
         </form>
+      {% else %}
+        <a href="/staff/login">Staff Login</a>
       {% endif %}
     </div>
   </nav>

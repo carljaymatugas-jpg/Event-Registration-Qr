@@ -2,6 +2,7 @@
 {% block title %}Staff Login — EventReg{% endblock %}
 {% block content %}
 <div class="form-container form-narrow">
+  <a href="/" class="back-link">← Back to Events</a>
   <h1>Staff Sign In</h1>
   <p class="text-muted" style="margin-bottom:1.5rem;">Enter your credentials to access the staff panel.</p>
   {% if error %}
@@ -20,6 +21,9 @@
   </form>
   <p class="small-note" style="margin-top:1.25rem;text-align:center;">
     Demo: <code>organizer / organizer123</code> &nbsp;|&nbsp; <code>doorstaff / door123</code>
+  </p>
+  <p class="small-note" style="margin-top:0.75rem;text-align:center;">
+    <a href="/">← Return to Public Events</a>
   </p>
 </div>
 {% endblock %}
