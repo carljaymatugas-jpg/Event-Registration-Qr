@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}EventReg{% endblock %}</title>
+  <title>{% block title %}EventReg | Events & QR Check-in{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -17,29 +18,34 @@
   {% block head %}{% endblock %}
 </head>
 <body>
-  <nav class="navbar">
-    <a href="/" class="brand"><span class="brand-badge">⚡</span> EventReg Community</a>
-    <div class="nav-links">
-      <a href="/">Browse Events</a>
-      <a href="/lookup">Lookup My Ticket</a>
-      {% if staffUser %}
-        <a href="/staff/dashboard">Staff Dashboard</a>
-        <form method="POST" action="/staff/logout" style="display:inline">
-          <button type="submit" class="btn-link">Sign Out ({{ staffUser.name }})</button>
-        </form>
-      {% else %}
-        <a href="/staff/login" class="btn btn-outline-staff">Staff Login</a>
-      {% endif %}
-      <!-- Theme Switcher -->
-      <div class="theme-switch-container" style="padding: 0.25rem 0.5rem; border: none; margin: 0; background: transparent;">
-        <span class="theme-mode-icon" id="themeIcon">🌙</span>
-        <label class="theme-toggle-switch">
-          <input type="checkbox" id="themeCheckbox">
-          <span class="theme-slider"></span>
-        </label>
+  <header class="navbar-wrapper">
+    <nav class="navbar" aria-label="Main Navigation">
+      <a href="/" class="brand">
+        <span class="brand-badge brand-badge-purple">⚡</span>
+        <span class="brand-text">EventReg Community</span>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link-item">Browse Events</a>
+        <a href="/lookup" class="nav-link-item">Lookup My Ticket</a>
+        {% if staffUser %}
+          <a href="/staff/dashboard" class="nav-link-item">Staff Dashboard</a>
+          <form method="POST" action="/staff/logout" style="display:inline; margin:0;">
+            <button type="submit" class="btn-link nav-link-item">Sign Out ({{ staffUser.name }})</button>
+          </form>
+        {% else %}
+          <a href="/staff/login" class="btn btn-outline-staff">Staff Login</a>
+        {% endif %}
+        <!-- Theme Switcher -->
+        <div class="theme-switch-container">
+          <span class="theme-mode-icon" id="themeIcon" aria-hidden="true">🌙</span>
+          <label class="theme-toggle-switch" for="themeCheckbox">
+            <input type="checkbox" id="themeCheckbox" aria-label="Toggle dark and light theme">
+            <span class="theme-slider"></span>
+          </label>
+        </div>
       </div>
-    </div>
-  </nav>
+    </nav>
+  </header>
 
   <main class="container">
     {% if flash %}

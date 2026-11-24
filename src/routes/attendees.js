@@ -123,8 +123,8 @@ router.post('/:event_id/promote/:reg_id', requireOrganizer, async (req, res, nex
   }
 });
 
-// GET CSV export
-router.get('/:event_id/export.csv', async (req, res, next) => {
+// GET CSV export (Organizer only)
+router.get('/:event_id/export.csv', requireOrganizer, async (req, res, next) => {
   try {
     const event = await db.prepare('SELECT * FROM events WHERE id = ?').get(req.params.event_id);
     if (!event) return res.status(404).send('Not found');

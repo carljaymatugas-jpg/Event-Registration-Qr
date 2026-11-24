@@ -1,31 +1,40 @@
 {% extends "base.html" %}
 {% block title %}Find Your Ticket — EventReg{% endblock %}
 {% block content %}
-<div class="form-container form-narrow">
-  <h1 style="font-size: var(--text-2xl); font-weight: 800;">🔍 Find Your Ticket</h1>
-  <p class="text-muted" style="margin-bottom:1.5rem; font-size: var(--text-sm);">Enter your ticket code and email (or mobile number) to retrieve your ticket and QR code.</p>
-
-  {% if error %}
-    <div class="alert alert-danger" role="alert">{{ error }}</div>
-  {% endif %}
-
-  <form method="POST" action="/lookup">
-    <div class="field">
-      <label for="ticket_code">Ticket Code <span style="color:var(--color-danger)">*</span></label>
-      <input type="text" id="ticket_code" name="ticket_code" placeholder="e.g. CDM-7K3P9Q-A3F2"
-             style="text-transform:uppercase; font-family:var(--font-mono); letter-spacing:0.06em;" required autocomplete="off">
+<div class="lookup-page-wrapper">
+  <div class="form-container form-narrow lookup-card-centered">
+    <div class="lookup-card-header">
+      <div class="lookup-badge-icon" aria-hidden="true">🔍</div>
+      <h1 class="lookup-title">Find Your Ticket</h1>
+      <p class="text-muted lookup-subtitle">
+        Enter your ticket code and email (or mobile number) to retrieve your ticket and QR pass.
+      </p>
     </div>
-    <div class="field">
-      <label for="identifier">Email or Mobile Number <span style="color:var(--color-danger)">*</span></label>
-      <input type="text" id="identifier" name="identifier" placeholder="juan@example.com or 09171234567" required autocomplete="username">
-    </div>
-    <button type="submit" class="btn btn-cta btn-block btn-lg" style="margin-top: 0.5rem; justify-content: center;">
-      Find My Ticket →
-    </button>
-  </form>
 
-  <p class="small-note" style="margin-top:1.5rem; text-align:center;">
-    Need an event ticket? <a href="/">Browse upcoming events</a>.
-  </p>
+    {% if error %}
+      <div class="alert alert-danger" role="alert" style="margin-bottom: 1.25rem;">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/lookup" class="lookup-form" novalidate>
+      <div class="field">
+        <label for="ticket_code">Ticket Code <span style="color:var(--color-danger)">*</span></label>
+        <input type="text" id="ticket_code" name="ticket_code" placeholder="e.g. CDM-7K3P9Q-A3F2"
+               style="text-transform:uppercase; font-family:var(--font-mono); letter-spacing:0.06em;" required autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="identifier">Email or Mobile Number <span style="color:var(--color-danger)">*</span></label>
+        <input type="text" id="identifier" name="identifier" placeholder="juan@example.com or 09171234567" required autocomplete="username">
+      </div>
+      <button type="submit" class="btn btn-cta btn-block btn-lg" style="margin-top: 0.75rem; justify-content: center;">
+        Find My Ticket →
+      </button>
+    </form>
+
+    <div class="lookup-card-footer">
+      <p class="small-note lookup-footer-note">
+        Need an event ticket? <a href="/" class="lookup-browse-link">Browse upcoming events →</a>
+      </p>
+    </div>
+  </div>
 </div>
 {% endblock %}

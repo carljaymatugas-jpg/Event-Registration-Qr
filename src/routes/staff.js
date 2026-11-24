@@ -6,6 +6,9 @@ const { requireStaff } = require('../middleware/auth');
 
 // GET login page
 router.get('/login', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
   if (req.session.staff) return res.redirect('/staff/dashboard');
   res.render('staff/login.html', { error: null });
 });
@@ -33,7 +36,13 @@ router.post('/login', async (req, res, next) => {
 
 // POST logout
 router.post('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/staff/login'));
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  req.session.destroy(() => {
+    res.clearCookie('connect.sid');
+    res.redirect('/staff/login');
+  });
 });
 
 // Staff home redirect

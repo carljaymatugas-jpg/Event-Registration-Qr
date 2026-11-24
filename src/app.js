@@ -42,8 +42,15 @@ app.use(express.json());
 
 // ── Global rate limiters ─────────────────────────────────────────────────────
 const lookupLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, max: 30,
-  message: 'Too many requests, please try again later.'
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).render('ticket_lookup.html', {
+      error: 'Too many ticket lookup attempts. For security, please try again in 15 minutes.'
+    });
+  }
 });
 const checkinLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, max: 60,
@@ -59,6 +66,7 @@ app.use((req, res, next) => {
 });
 
 // ── Routes ───────────────────────────────────────────────────────────────────
+app.use('/lookup', lookupLimiter);
 app.use('/', require('./routes/attendee'));
 app.use('/ticket', lookupLimiter, require('./routes/ticket_view'));
 app.use('/staff', require('./routes/staff'));

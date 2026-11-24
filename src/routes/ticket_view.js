@@ -4,40 +4,49 @@ const db = require('../db/db');
 const QRCode = require('qrcode');
 const { verifyTicketCode } = require('../utils/ticket');
 const { nowCebu } = require('../utils/time');
+const { normalizePHMobile } = require('../utils/phone');
 const audit = require('../utils/audit');
+
+const GENERIC_LOOKUP_ERROR = 'Ticket not found or contact information does not match.';
 
 // GET /ticket/:code?email=... or ?identifier=...
 router.get('/:code', async (req, res, next) => {
   try {
-    const { code } = req.params;
+    const rawCode = (req.params.code || '').trim().toUpperCase();
     const { email, identifier, msg } = req.query;
-    const idVal = (identifier || email || '').trim();
+    const rawId = (identifier || email || '').trim();
 
-    if (!idVal) {
-      return res.redirect(`/lookup`);
+    if (!rawId) {
+      return res.redirect('/lookup');
     }
 
-    if (!verifyTicketCode(code)) {
-      return res.render('ticket_lookup.html', { error: 'Ticket not found.' });
+    if (!verifyTicketCode(rawCode)) {
+      return res.render('ticket_lookup.html', { error: GENERIC_LOOKUP_ERROR });
     }
+
+    const normPhone = normalizePHMobile(rawId);
 
     const reg = await db.prepare(`
       SELECT r.*, e.title as event_title, e.venue, e.starts_at, e.ends_at
       FROM registrations r
       JOIN events e ON e.id = r.event_id
-      WHERE r.ticket_code = ? AND (LOWER(r.email) = LOWER(?) OR r.mobile = ?)
-    `).get(code, idVal, idVal);
+      WHERE r.ticket_code = ? AND (
+        LOWER(r.email) = LOWER(?)
+        OR r.mobile = ?
+        OR r.mobile = ?
+      )
+    `).get(rawCode, rawId, rawId, normPhone);
 
     if (!reg) {
-      return res.render('ticket_lookup.html', { error: 'Ticket not found.' });
+      return res.render('ticket_lookup.html', { error: GENERIC_LOOKUP_ERROR });
     }
 
     let qrDataUrl = null;
     if (reg.status !== 'Cancelled') {
-      qrDataUrl = await QRCode.toDataURL(code, { width: 300 });
+      qrDataUrl = await QRCode.toDataURL(rawCode, { width: 300 });
     }
 
-    res.render('ticket.html', { reg, qrDataUrl, identifier: idVal, infoMsg: msg || null });
+    res.render('ticket.html', { reg, qrDataUrl, identifier: rawId, infoMsg: msg || null });
   } catch (err) {
     next(err);
   }
@@ -46,30 +55,36 @@ router.get('/:code', async (req, res, next) => {
 // POST /ticket/:code/cancel — attendee self-cancel
 router.post('/:code/cancel', async (req, res, next) => {
   try {
-    const { code } = req.params;
+    const rawCode = (req.params.code || '').trim().toUpperCase();
     const { email, identifier } = req.body;
-    const idVal = (identifier || email || '').trim();
+    const rawId = (identifier || email || '').trim();
 
-    if (!verifyTicketCode(code)) {
-      return res.render('ticket_lookup.html', { error: 'Ticket not found.' });
+    if (!verifyTicketCode(rawCode)) {
+      return res.render('ticket_lookup.html', { error: GENERIC_LOOKUP_ERROR });
     }
+
+    const normPhone = normalizePHMobile(rawId);
 
     const reg = await db.prepare(`
       SELECT r.* FROM registrations r
-      WHERE r.ticket_code = ? AND (LOWER(r.email) = LOWER(?) OR r.mobile = ?)
-    `).get(code, idVal, idVal);
+      WHERE r.ticket_code = ? AND (
+        LOWER(r.email) = LOWER(?)
+        OR r.mobile = ?
+        OR r.mobile = ?
+      )
+    `).get(rawCode, rawId, rawId, normPhone);
 
-    if (!reg) return res.render('ticket_lookup.html', { error: 'Ticket not found.' });
+    if (!reg) return res.render('ticket_lookup.html', { error: GENERIC_LOOKUP_ERROR });
     if (reg.status === 'CheckedIn') {
-      return res.redirect(`/ticket/${code}?identifier=${encodeURIComponent(idVal)}&msg=Cannot+cancel+a+checked-in+registration.`);
+      return res.redirect(`/ticket/${rawCode}?identifier=${encodeURIComponent(rawId)}&msg=Cannot+cancel+a+checked-in+registration.`);
     }
     if (reg.status === 'Cancelled') {
-      return res.redirect(`/ticket/${code}?identifier=${encodeURIComponent(idVal)}&msg=Already+cancelled.`);
+      return res.redirect(`/ticket/${rawCode}?identifier=${encodeURIComponent(rawId)}&msg=Already+cancelled.`);
     }
 
-    await db.prepare(`UPDATE registrations SET status='Cancelled' WHERE ticket_code=?`).run(code);
-    try { audit.log(0, 'attendee_cancel', reg.id, `ticket:${code}`); } catch (_) {}
-    res.redirect(`/ticket/${code}?identifier=${encodeURIComponent(idVal)}&msg=Registration+cancelled.`);
+    await db.prepare(`UPDATE registrations SET status='Cancelled' WHERE ticket_code=?`).run(rawCode);
+    try { audit.log(0, 'attendee_cancel', reg.id, `ticket:${rawCode}`); } catch (_) {}
+    res.redirect(`/ticket/${rawCode}?identifier=${encodeURIComponent(rawId)}&msg=Registration+cancelled.`);
   } catch (err) {
     next(err);
   }

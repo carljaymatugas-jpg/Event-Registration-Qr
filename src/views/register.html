@@ -5,10 +5,14 @@
   <a href="/events/{{ event.id }}" class="back-link">← Back to Event</a>
 
   <div class="event-badge-row">
-    <span class="badge-pill badge-pill-purple">FREE EVENT</span>
-    <span class="badge-pill badge-pill-green">CEBU TECH COMMUNITY</span>
-    {% if event.is_full %}
-      <span class="badge-pill badge-pill-amber">FULL · WAITLIST ACTIVE</span>
+    <span class="badge-pill badge-pill-purple">{{ event.category or 'TECH & DEVELOPER' }}</span>
+    <span class="badge-pill badge-pill-green">FREE EVENT</span>
+    {% if event.has_ended %}
+      <span class="badge-pill badge-pill-amber">EVENT CONCLUDED</span>
+    {% elif event.has_started %}
+      <span class="badge-pill badge-pill-amber">EVENT IN PROGRESS</span>
+    {% elif event.is_full %}
+      <span class="badge-pill badge-pill-amber">SOLD OUT ({{ event.capacity }}/{{ event.capacity }})</span>
     {% else %}
       <span class="badge-pill badge-pill-green">{{ event.spots_left }} OF {{ event.capacity }} SPOTS LEFT</span>
     {% endif %}
@@ -17,50 +21,93 @@
   <h1 style="font-size: var(--text-2xl); font-weight: 800; margin-bottom: 0.5rem;">{{ event.title }}</h1>
   
   <p class="text-muted" style="margin-bottom: 1.5rem; font-size: var(--text-sm);">
-    📅 {{ event.starts_at | cebuDate }} &nbsp;·&nbsp; 📍 {{ event.venue }}
+    📅 {{ event.starts_at | cebuDate }} &nbsp;·&nbsp; 🕐 {{ event.starts_at | cebuTime }} – {{ event.ends_at | cebuTime }} &nbsp;·&nbsp; 📍 {{ event.venue }}
   </p>
 
-  <h3 style="font-size: var(--text-md); font-weight: 700; margin-bottom: 1.25rem; color: var(--color-text-heading);">
-    {% if event.is_full %}Waitlist Registration{% else %}Participant Registration{% endif %}
-  </h3>
-
-  {% if event.is_full %}
-    <div class="alert alert-warning">This event is full. You can join the waitlist and be notified if a spot opens up.</div>
+  {% if errors.form %}
+    <div class="alert alert-danger" role="alert" style="margin-bottom: 1.5rem;">
+      <strong>Notice:</strong> {{ errors.form }}
+    </div>
   {% endif %}
 
-  <form method="POST" action="/events/{{ event.id }}/register" novalidate>
+  {% if event.has_ended %}
+    <div class="alert alert-secondary" style="margin-bottom: 1.5rem;">
+      <strong>Registration Closed:</strong> This event has already concluded. Thank you for your interest!
+    </div>
+  {% elif event.has_started %}
+    <div class="alert alert-warning" style="margin-bottom: 1.5rem;">
+      <strong>Registration Closed:</strong> This event has already started. Gate registrations are now closed.
+    </div>
+  {% elif event.is_full %}
+    <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+      <strong>Sold Out:</strong> All {{ event.capacity }} seats have been reserved. Registration is currently closed.
+    </div>
+  {% endif %}
 
+  <form method="POST" action="/events/{{ event.id }}/register" id="registrationForm" novalidate>
     <div class="field {% if errors.full_name %}has-error{% endif %}">
       <label for="full_name">Full Name <span style="color:var(--color-danger)">*</span></label>
       <input type="text" id="full_name" name="full_name" value="{{ values.full_name or '' }}"
-             placeholder="Juan Dela Cruz" autocomplete="name" required>
+             placeholder="Juan Dela Cruz" autocomplete="name" maxlength="100" required
+             {% if event.is_full or event.has_started %}disabled{% endif %}>
       {% if errors.full_name %}<span class="field-error" role="alert">{{ errors.full_name }}</span>{% endif %}
     </div>
 
     <div class="field {% if errors.email %}has-error{% endif %}">
       <label for="email">Email Address <span style="color:var(--color-danger)">*</span></label>
       <input type="email" id="email" name="email" value="{{ values.email or '' }}"
-             placeholder="juan@example.com" autocomplete="email" required>
+             placeholder="juan@example.com" autocomplete="email" maxlength="150" required
+             {% if event.is_full or event.has_started %}disabled{% endif %}>
       {% if errors.email %}<span class="field-error" role="alert">{{ errors.email }}</span>{% endif %}
     </div>
 
     <div class="field {% if errors.mobile %}has-error{% endif %}">
       <label for="mobile">Mobile Number (Philippine Format) <span style="color:var(--color-danger)">*</span>
-        <small class="text-muted" style="font-weight: 400;">(e.g. 09XXXXXXXXX)</small>
+        <small class="text-muted" style="font-weight: 400;">(e.g. 09XXXXXXXXX or +639XXXXXXXXX)</small>
       </label>
       <input type="tel" id="mobile" name="mobile" value="{{ values.mobile or '' }}"
-             placeholder="09171234567" maxlength="11" autocomplete="tel" required>
+             placeholder="09171234567" maxlength="14" autocomplete="tel" required
+             {% if event.is_full or event.has_started %}disabled{% endif %}>
       {% if errors.mobile %}<span class="field-error" role="alert">{{ errors.mobile }}</span>{% endif %}
     </div>
 
-    <div class="info-notice-banner">
+    <div class="info-notice-banner" style="margin: 1.25rem 0;">
       <span>ℹ️</span>
-      <span>Server-verified capacity: Your spot is reserved immediately upon submit.</span>
+      <span>Instant QR Ticket generation: Guaranteed entry pass sent to your email and ready for door check-in.</span>
     </div>
 
-    <button type="submit" class="btn btn-cta btn-block btn-lg" style="margin-top: 0.5rem; justify-content: center;">
-      {% if event.is_full %}Join Waitlist & Get Pass{% else %}Confirm Registration & Get QR Ticket{% endif %}
-    </button>
+    {% if event.is_full or event.has_started %}
+      <button type="button" class="btn btn-secondary btn-block btn-lg" disabled style="margin-top: 0.5rem; justify-content: center; opacity: 0.65; cursor: not-allowed;">
+        {% if event.has_ended %}Event Concluded{% elif event.has_started %}Registration Closed{% else %}Sold Out — No Spots Left{% endif %}
+      </button>
+    {% else %}
+      <button type="submit" id="submitRegBtn" class="btn btn-cta btn-block btn-lg" style="margin-top: 0.5rem; justify-content: center;">
+        Confirm Registration & Get QR Ticket →
+      </button>
+    {% endif %}
   </form>
 </div>
+
+<script>
+  (function() {
+    var form = document.getElementById('registrationForm');
+    var btn = document.getElementById('submitRegBtn');
+    if (form && btn) {
+      form.addEventListener('submit', function(e) {
+        if (btn.disabled) {
+          e.preventDefault();
+          return false;
+        }
+        // Client-side instant lock against double click
+        setTimeout(function() {
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner" style="display:inline-block; width:14px; height:14px; border:2px solid #FFF; border-top-color:transparent; border-radius:50%; animation:spin 0.6s linear infinite; margin-right:8px; vertical-align:middle;"></span> Processing Registration...';
+        }, 10);
+      });
+    }
+  })();
+</script>
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
 {% endblock %}

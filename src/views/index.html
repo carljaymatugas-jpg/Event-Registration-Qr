@@ -1,52 +1,481 @@
 {% extends "base.html" %}
 {% block title %}Upcoming Events — EventReg{% endblock %}
 {% block content %}
-<div class="page-header" style="align-items:baseline; margin-bottom: 1.5rem;">
-  <div>
-    <h1 style="font-size: var(--text-3xl);">Upcoming Events</h1>
-    <p class="text-muted" style="margin-top: 0.25rem;">Discover and register for technology community events in Cebu</p>
+<!-- Page Header -->
+<div class="events-hero-header">
+  <div class="events-hero-text">
+    <h1 class="events-main-title">Upcoming Events</h1>
+    <p class="text-muted events-main-subtitle">Discover and register for premier tech, design, and community events in Cebu.</p>
   </div>
 </div>
 
-{% if events.length === 0 %}
-  <p class="empty">No upcoming events at the moment. Check back soon!</p>
-{% endif %}
+<!-- Event Controls & Search Toolbar -->
+<div class="events-toolbar-card">
+  <div class="events-toolbar-top">
+    <!-- Search Bar -->
+    <div class="search-input-wrapper">
+      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input type="text" id="eventSearchInput" class="event-search-field" placeholder="Search events by name, category, venue, or keywords..." aria-label="Search events">
+      <button type="button" id="clearSearchBtn" class="search-clear-btn" style="display:none;" aria-label="Clear search">✕</button>
+    </div>
 
-<div class="event-grid">
+    <!-- Right Controls: Sort, Page Size, View Mode Toggle -->
+    <div class="toolbar-right-controls">
+      <!-- Sort Dropdown -->
+      <div class="control-select-group">
+        <label for="sortSelect" class="control-label">Sort:</label>
+        <select id="sortSelect" class="form-select-sm" aria-label="Sort events by">
+          <option value="date-asc">Event Date (Soonest)</option>
+          <option value="spots-asc">Spots Left (Lowest First)</option>
+          <option value="spots-desc">Spots Left (Highest First)</option>
+          <option value="title-asc">Event Title (A–Z)</option>
+        </select>
+      </div>
+
+      <!-- Page Size Selector -->
+      <div class="control-select-group">
+        <label for="pageSizeSelect" class="control-label">Show:</label>
+        <select id="pageSizeSelect" class="form-select-sm" aria-label="Events per page">
+          <option value="5">5 per page</option>
+          <option value="10" selected>10 per page</option>
+          <option value="25">25 per page</option>
+        </select>
+      </div>
+
+      <!-- View Toggle Buttons -->
+      <div class="view-toggle-group" role="group" aria-label="View layout toggle">
+        <button type="button" id="viewCardBtn" class="view-btn active" title="Card View" aria-label="Switch to Card View">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        </button>
+        <button type="button" id="viewListBtn" class="view-btn" title="List View" aria-label="Switch to List View">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Pills Row -->
+  <div class="events-toolbar-filters">
+    <span class="filter-group-label">Filter:</span>
+    <div class="filter-pills-list" id="categoryFilters">
+      <button type="button" class="filter-pill active" data-filter="all">All Events</button>
+      <button type="button" class="filter-pill" data-filter="TECH & DEVELOPER">Tech & Developer</button>
+      <button type="button" class="filter-pill" data-filter="DESIGN & CREATIVE">Design & Creative</button>
+      <button type="button" class="filter-pill" data-filter="HANDS-ON WORKSHOP">Hands-on Workshop</button>
+      <button type="button" class="filter-pill" data-filter="COMMUNITY MEETUP">Community Meetup</button>
+      <button type="button" class="filter-pill" data-filter="FREE">Free Events</button>
+      <button type="button" class="filter-pill" data-filter="AVAILABLE">Spots Available</button>
+    </div>
+    <button type="button" id="resetFiltersBtn" class="filter-reset-link" style="display: none;">Clear all filters</button>
+  </div>
+</div>
+
+<!-- Active Filter / Results Count Meta -->
+<div class="events-meta-bar">
+  <span id="resultsCountLabel" class="text-muted" style="font-size: var(--text-sm);">Showing all events</span>
+</div>
+
+<!-- Card View Container (Default) -->
+<div id="eventsCardGrid" class="event-grid">
   {% for ev in events %}
-  <div class="event-card {% if ev.is_full %}full{% endif %} {% if ev.is_past %}past{% endif %}">
+  <article class="event-card {% if ev.is_full %}full{% endif %} {% if ev.has_started %}started{% endif %} {% if ev.is_past %}past{% endif %}"
+           data-id="{{ ev.id }}"
+           data-title="{{ ev.title | lower }}"
+           data-category="{{ ev.category }}"
+           data-venue="{{ ev.venue | lower }}"
+           data-starts="{{ ev.starts_at }}"
+           data-spots="{{ ev.spots_left }}"
+           data-capacity="{{ ev.capacity }}"
+           data-is-full="{{ ev.is_full }}"
+           data-has-started="{{ ev.has_started }}">
     <div class="event-badge-row">
-      <span class="badge-pill badge-pill-purple">FREE EVENT</span>
-      <span class="badge-pill badge-pill-green">COMMUNITY</span>
-      {% if ev.is_past %}
+      <span class="badge-pill badge-pill-purple">{{ ev.category }}</span>
+      <span class="badge-pill badge-pill-green">FREE EVENT</span>
+      {% if ev.has_ended %}
         <span class="badge-pill badge-pill-amber">ENDED</span>
+      {% elif ev.has_started %}
+        <span class="badge-pill badge-pill-amber">IN PROGRESS</span>
       {% elif ev.is_full %}
-        <span class="badge-pill badge-pill-amber">FULL ({{ ev.capacity }}/{{ ev.capacity }})</span>
+        <span class="badge-pill badge-pill-amber">SOLD OUT ({{ ev.capacity }}/{{ ev.capacity }})</span>
       {% else %}
         <span class="badge-pill badge-pill-green">{{ ev.spots_left }} OF {{ ev.capacity }} SPOTS LEFT</span>
       {% endif %}
     </div>
 
-    <h2><a href="/events/{{ ev.id }}">{{ ev.title }}</a></h2>
-    
-    <p class="event-meta">
-      📅 {{ ev.starts_at | cebuDate }}<br>
-      🕐 {{ ev.starts_at | cebuTime }} – {{ ev.ends_at | cebuTime }}<br>
-      📍 {{ ev.venue }}
-    </p>
+    <h2 class="event-card-title"><a href="/events/{{ ev.id }}">{{ ev.title }}</a></h2>
 
-    <p class="spots">
-      {% if ev.is_full %}
-        <strong class="text-danger">Full ({{ ev.capacity }}/{{ ev.capacity }})</strong>
-      {% else %}
-        <span class="text-success">{{ ev.spots_left }}</span> of {{ ev.capacity }} spots left
-      {% endif %}
-    </p>
+    <div class="event-meta-list">
+      <div class="event-meta-item">
+        <span class="meta-icon" aria-hidden="true">📅</span>
+        <span class="meta-text">{{ ev.starts_at | cebuDate }}</span>
+      </div>
+      <div class="event-meta-item">
+        <span class="meta-icon" aria-hidden="true">🕐</span>
+        <span class="meta-text">{{ ev.starts_at | cebuTime }} – {{ ev.ends_at | cebuTime }}</span>
+      </div>
+      <div class="event-meta-item">
+        <span class="meta-icon" aria-hidden="true">📍</span>
+        <span class="meta-text">{{ ev.venue }}</span>
+      </div>
+    </div>
 
-    <a href="/events/{{ ev.id }}" class="btn {% if ev.is_full %}btn-secondary{% else %}btn-cta{% endif %}" style="margin-top: 0.5rem; justify-content: center;">
-      {% if ev.is_full %}Join Waitlist / Details →{% else %}Register Now →{% endif %}
-    </a>
-  </div>
+    <div class="event-card-footer">
+      <p class="spots-info">
+        {% if ev.is_full %}
+          <strong class="text-danger">Sold Out ({{ ev.capacity }}/{{ ev.capacity }})</strong>
+        {% elif ev.has_started %}
+          <strong class="text-warning">Registration Closed</strong>
+        {% else %}
+          <span class="text-success" style="font-weight: 700;">{{ ev.spots_left }}</span> of {{ ev.capacity }} spots left
+        {% endif %}
+      </p>
+
+      <a href="/events/{{ ev.id }}" class="btn {% if ev.is_full or ev.has_started %}btn-secondary{% else %}btn-cta{% endif %} event-action-btn">
+        {% if ev.has_ended %}View Event Details →{% elif ev.has_started %}Event In Progress →{% elif ev.is_full %}Sold Out / Details →{% else %}Register Now →{% endif %}
+      </a>
+    </div>
+  </article>
   {% endfor %}
 </div>
+
+<!-- List View Container (Alternative View) -->
+<div id="eventsListContainer" class="events-list-wrapper" style="display: none;">
+  {% for ev in events %}
+  <article class="event-list-row {% if ev.is_full %}full{% endif %} {% if ev.has_started %}started{% endif %}"
+           data-id="{{ ev.id }}"
+           data-title="{{ ev.title | lower }}"
+           data-category="{{ ev.category }}"
+           data-venue="{{ ev.venue | lower }}"
+           data-starts="{{ ev.starts_at }}"
+           data-spots="{{ ev.spots_left }}"
+           data-capacity="{{ ev.capacity }}"
+           data-is-full="{{ ev.is_full }}"
+           data-has-started="{{ ev.has_started }}">
+    <div class="event-list-main">
+      <div class="event-badge-row" style="margin-bottom: 0.35rem;">
+        <span class="badge-pill badge-pill-purple">{{ ev.category }}</span>
+        <span class="badge-pill badge-pill-green">FREE</span>
+        {% if ev.is_full %}
+          <span class="badge-pill badge-pill-amber">SOLD OUT</span>
+        {% elif ev.has_started %}
+          <span class="badge-pill badge-pill-amber">CLOSED</span>
+        {% endif %}
+      </div>
+      <h3 class="event-list-title"><a href="/events/{{ ev.id }}">{{ ev.title }}</a></h3>
+      <div class="event-list-meta">
+        <span class="meta-item"><span class="meta-icon">📅</span> {{ ev.starts_at | cebuDate }}</span>
+        <span class="meta-item"><span class="meta-icon">🕐</span> {{ ev.starts_at | cebuTime }} – {{ ev.ends_at | cebuTime }}</span>
+        <span class="meta-item"><span class="meta-icon">📍</span> {{ ev.venue }}</span>
+      </div>
+    </div>
+    <div class="event-list-right">
+      <div class="event-list-capacity">
+        {% if ev.is_full %}
+          <span class="badge-pill badge-pill-amber">Full</span>
+        {% else %}
+          <span class="spots-number">{{ ev.spots_left }}</span>
+          <span class="spots-label">of {{ ev.capacity }} left</span>
+        {% endif %}
+      </div>
+      <a href="/events/{{ ev.id }}" class="btn {% if ev.is_full or ev.has_started %}btn-secondary{% else %}btn-cta{% endif %} btn-sm">
+        {% if ev.is_full %}Details{% else %}Register →{% endif %}
+      </a>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+
+<!-- Empty State Message -->
+<div id="noEventsFound" class="empty-results-card" style="display: none;">
+  <div class="empty-icon">🔍</div>
+  <h3>No matching events found</h3>
+  <p class="text-muted">We couldn't find any events matching your search criteria.</p>
+  <button type="button" id="emptyResetBtn" class="btn btn-secondary btn-sm" style="margin-top: 1rem;">Reset all filters</button>
+</div>
+
+<!-- Pagination Controls -->
+<div id="paginationContainer" class="pagination-bar" style="margin-top: 2rem;">
+  <div class="pagination-info" id="paginationInfo">Page 1 of 1</div>
+  <div class="pagination-nav">
+    <button type="button" id="prevPageBtn" class="btn btn-secondary btn-sm" disabled>← Previous</button>
+    <div id="pageNumbersContainer" class="page-numbers-list"></div>
+    <button type="button" id="nextPageBtn" class="btn btn-secondary btn-sm" disabled>Next →</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  // Elements
+  var searchInput = document.getElementById('eventSearchInput');
+  var clearSearchBtn = document.getElementById('clearSearchBtn');
+  var sortSelect = document.getElementById('sortSelect');
+  var pageSizeSelect = document.getElementById('pageSizeSelect');
+  var viewCardBtn = document.getElementById('viewCardBtn');
+  var viewListBtn = document.getElementById('viewListBtn');
+  var filterPills = document.querySelectorAll('#categoryFilters .filter-pill');
+  var resetFiltersBtn = document.getElementById('resetFiltersBtn');
+  var emptyResetBtn = document.getElementById('emptyResetBtn');
+  var resultsCountLabel = document.getElementById('resultsCountLabel');
+  var noEventsFound = document.getElementById('noEventsFound');
+  var cardGrid = document.getElementById('eventsCardGrid');
+  var listContainer = document.getElementById('eventsListContainer');
+  var prevPageBtn = document.getElementById('prevPageBtn');
+  var nextPageBtn = document.getElementById('nextPageBtn');
+  var pageNumbersContainer = document.getElementById('pageNumbersContainer');
+  var paginationInfo = document.getElementById('paginationInfo');
+  var paginationContainer = document.getElementById('paginationContainer');
+
+  var allCards = Array.from(cardGrid.querySelectorAll('.event-card'));
+  var allRows = Array.from(listContainer.querySelectorAll('.event-list-row'));
+
+  // State
+  var currentSearch = '';
+  var currentFilter = 'all';
+  var currentSort = 'date-asc';
+  var currentPage = 1;
+  var pageSize = 10;
+  var currentView = localStorage.getItem('eventreg-view-mode') || 'card';
+
+  // Apply saved view
+  setView(currentView);
+
+  viewCardBtn.addEventListener('click', function() { setView('card'); });
+  viewListBtn.addEventListener('click', function() { setView('list'); });
+
+  function setView(mode) {
+    currentView = mode;
+    localStorage.setItem('eventreg-view-mode', mode);
+    if (mode === 'card') {
+      viewCardBtn.classList.add('active');
+      viewListBtn.classList.remove('active');
+      cardGrid.style.display = 'grid';
+      listContainer.style.display = 'none';
+    } else {
+      viewListBtn.classList.add('active');
+      viewCardBtn.classList.remove('active');
+      cardGrid.style.display = 'none';
+      listContainer.style.display = 'flex';
+    }
+  }
+
+  // Filter pills
+  filterPills.forEach(function(pill) {
+    pill.addEventListener('click', function() {
+      filterPills.forEach(function(p) { p.classList.remove('active'); });
+      pill.classList.add('active');
+      currentFilter = pill.getAttribute('data-filter');
+      currentPage = 1;
+      updateFilterResetVisibility();
+      render();
+    });
+  });
+
+  // Search input
+  searchInput.addEventListener('input', function() {
+    currentSearch = this.value.trim().toLowerCase();
+    clearSearchBtn.style.display = currentSearch ? 'inline-flex' : 'none';
+    currentPage = 1;
+    updateFilterResetVisibility();
+    render();
+  });
+
+  clearSearchBtn.addEventListener('click', function() {
+    searchInput.value = '';
+    currentSearch = '';
+    clearSearchBtn.style.display = 'none';
+    currentPage = 1;
+    updateFilterResetVisibility();
+    render();
+  });
+
+  // Sort
+  sortSelect.addEventListener('change', function() {
+    currentSort = this.value;
+    render();
+  });
+
+  // Page Size
+  pageSizeSelect.addEventListener('change', function() {
+    pageSize = parseInt(this.value, 10);
+    currentPage = 1;
+    render();
+  });
+
+  // Reset all
+  function resetAll() {
+    searchInput.value = '';
+    currentSearch = '';
+    clearSearchBtn.style.display = 'none';
+    filterPills.forEach(function(p) { p.classList.remove('active'); });
+    filterPills[0].classList.add('active');
+    currentFilter = 'all';
+    currentSort = 'date-asc';
+    sortSelect.value = 'date-asc';
+    currentPage = 1;
+    updateFilterResetVisibility();
+    render();
+  }
+
+  if (resetFiltersBtn) resetFiltersBtn.addEventListener('click', resetAll);
+  if (emptyResetBtn) emptyResetBtn.addEventListener('click', resetAll);
+
+  function updateFilterResetVisibility() {
+    var hasFilter = (currentFilter !== 'all') || (currentSearch !== '');
+    if (resetFiltersBtn) resetFiltersBtn.style.display = hasFilter ? 'inline-block' : 'none';
+  }
+
+  // Pagination clicks
+  prevPageBtn.addEventListener('click', function() {
+    if (currentPage > 1) {
+      currentPage--;
+      render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
+
+  nextPageBtn.addEventListener('click', function() {
+    currentPage++;
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  function render() {
+    // 1. Filter matching IDs
+    var matchedCards = allCards.filter(function(card) {
+      var title = card.getAttribute('data-title') || '';
+      var venue = card.getAttribute('data-venue') || '';
+      var category = card.getAttribute('data-category') || '';
+      var spots = parseInt(card.getAttribute('data-spots') || '0', 10);
+
+      // Search match
+      var matchesSearch = true;
+      if (currentSearch) {
+        matchesSearch = title.includes(currentSearch) ||
+                        venue.includes(currentSearch) ||
+                        category.toLowerCase().includes(currentSearch);
+      }
+
+      // Filter match
+      var matchesFilter = true;
+      if (currentFilter === 'all') {
+        matchesFilter = true;
+      } else if (currentFilter === 'FREE') {
+        matchesFilter = true; // All are free
+      } else if (currentFilter === 'AVAILABLE') {
+        matchesFilter = spots > 0;
+      } else {
+        matchesFilter = category.toUpperCase() === currentFilter.toUpperCase();
+      }
+
+      return matchesSearch && matchesFilter;
+    });
+
+    // 2. Sort matching cards
+    matchedCards.sort(function(a, b) {
+      if (currentSort === 'spots-asc') {
+        return parseInt(a.getAttribute('data-spots') || 0, 10) - parseInt(b.getAttribute('data-spots') || 0, 10);
+      } else if (currentSort === 'spots-desc') {
+        return parseInt(b.getAttribute('data-spots') || 0, 10) - parseInt(a.getAttribute('data-spots') || 0, 10);
+      } else if (currentSort === 'title-asc') {
+        return (a.getAttribute('data-title') || '').localeCompare(b.getAttribute('data-title') || '');
+      } else { // date-asc
+        return (a.getAttribute('data-starts') || '').localeCompare(b.getAttribute('data-starts') || '');
+      }
+    });
+
+    var totalMatches = matchedCards.length;
+    var totalPages = Math.ceil(totalMatches / pageSize) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    // Update count label
+    if (totalMatches === allCards.length) {
+      resultsCountLabel.textContent = 'Showing all ' + totalMatches + ' events';
+    } else {
+      resultsCountLabel.textContent = 'Found ' + totalMatches + ' of ' + allCards.length + ' events';
+    }
+
+    // Empty state
+    if (totalMatches === 0) {
+      cardGrid.style.display = 'none';
+      listContainer.style.display = 'none';
+      noEventsFound.style.display = 'block';
+      paginationContainer.style.display = 'none';
+      return;
+    } else {
+      noEventsFound.style.display = 'none';
+      if (currentView === 'card') {
+        cardGrid.style.display = 'grid';
+        listContainer.style.display = 'none';
+      } else {
+        cardGrid.style.display = 'none';
+        listContainer.style.display = 'flex';
+      }
+      paginationContainer.style.display = 'flex';
+    }
+
+    // Pagination slice
+    var startIndex = (currentPage - 1) * pageSize;
+    var endIndex = startIndex + pageSize;
+    var pageCards = matchedCards.slice(startIndex, endIndex);
+    var allowedIds = new Set(pageCards.map(function(c) { return c.getAttribute('data-id'); }));
+
+    // Re-append sorted cards in Card Grid
+    allCards.forEach(function(card) {
+      var id = card.getAttribute('data-id');
+      if (allowedIds.has(id)) {
+        card.style.display = 'flex';
+        cardGrid.appendChild(card); // Re-orders in DOM
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    // Re-append sorted rows in List Container
+    var rowMap = new Map();
+    allRows.forEach(function(r) { rowMap.set(r.getAttribute('data-id'), r); });
+    pageCards.forEach(function(card) {
+      var id = card.getAttribute('data-id');
+      var row = rowMap.get(id);
+      if (row) {
+        row.style.display = 'flex';
+        listContainer.appendChild(row);
+      }
+    });
+    allRows.forEach(function(row) {
+      if (!allowedIds.has(row.getAttribute('data-id'))) {
+        row.style.display = 'none';
+      }
+    });
+
+    // Update Pagination UI
+    paginationInfo.textContent = 'Page ' + currentPage + ' of ' + totalPages + ' (' + totalMatches + ' events)';
+    prevPageBtn.disabled = (currentPage <= 1);
+    nextPageBtn.disabled = (currentPage >= totalPages);
+
+    pageNumbersContainer.innerHTML = '';
+    for (var i = 1; i <= totalPages; i++) {
+      (function(pageIdx) {
+        var numBtn = document.createElement('button');
+        numBtn.type = 'button';
+        numBtn.className = 'page-num-btn' + (pageIdx === currentPage ? ' active' : '');
+        numBtn.textContent = pageIdx;
+        numBtn.addEventListener('click', function() {
+          currentPage = pageIdx;
+          render();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        pageNumbersContainer.appendChild(numBtn);
+      })(i);
+    }
+  }
+
+  // Initial render
+  render();
+})();
+</script>
 {% endblock %}

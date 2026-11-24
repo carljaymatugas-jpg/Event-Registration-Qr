@@ -1,53 +1,136 @@
 {% extends "base.html" %}
 {% block title %}{{ event.title }} — EventReg{% endblock %}
 {% block content %}
-<div class="event-detail">
-  <a href="/" class="back-link">← All Events</a>
-  
-  <div class="event-badge-row">
-    <span class="badge-pill badge-pill-purple">FREE EVENT</span>
-    <span class="badge-pill badge-pill-green">CEBU TECH COMMUNITY</span>
-    {% if event.is_past %}
-      <span class="badge-pill badge-pill-amber">EVENT ENDED</span>
-    {% elif event.is_full %}
-      <span class="badge-pill badge-pill-amber">FULL — WAITLIST OPEN</span>
-    {% else %}
-      <span class="badge-pill badge-pill-green">{{ event.spots_left }} OF {{ event.capacity }} SPOTS LEFT</span>
-    {% endif %}
-  </div>
-
-  <h1 style="font-size: var(--text-2xl); margin-bottom: 0.5rem;">{{ event.title }}</h1>
-
-  <div class="detail-meta">
-    <div class="detail-row">📅 <span><strong>{{ event.starts_at | cebuDate }}</strong></span></div>
-    <div class="detail-row">🕐 <span>{{ event.starts_at | cebuTime }} – {{ event.ends_at | cebuTime }}</span></div>
-    <div class="detail-row">📍 <span>{{ event.venue }}</span></div>
-    <div class="detail-row">🎟 <span>
-      {% if event.is_full %}
-        <strong class="text-danger">Full — all {{ event.capacity }} spots are taken</strong>
+<div class="event-detail-wrapper">
+  <!-- Top Navigation & Badges -->
+  <div class="detail-header-nav">
+    <a href="/" class="back-link">← All Events</a>
+    <div class="event-badge-row">
+      <span class="badge-pill badge-pill-purple">{{ event.category }}</span>
+      <span class="badge-pill badge-pill-green">FREE EVENT</span>
+      {% if event.has_ended %}
+        <span class="badge-pill badge-pill-amber">EVENT CONCLUDED</span>
+      {% elif event.has_started %}
+        <span class="badge-pill badge-pill-amber">EVENT IN PROGRESS</span>
+      {% elif event.is_full %}
+        <span class="badge-pill badge-pill-amber">SOLD OUT ({{ event.capacity }}/{{ event.capacity }})</span>
       {% else %}
-        <strong class="text-success">{{ event.spots_left }}</strong> of {{ event.capacity }} spots left
+        <span class="badge-pill badge-pill-green">{{ event.spots_left }} OF {{ event.capacity }} SPOTS LEFT</span>
       {% endif %}
-    </span></div>
+    </div>
   </div>
 
-  {% if event.description %}
-  <div class="event-desc">
-    <h3 style="font-weight: 700; margin-bottom: 0.5rem;">About this event</h3>
-    <p style="color: var(--color-text); line-height: 1.7;">{{ event.description }}</p>
+  <h1 class="detail-main-title">{{ event.title }}</h1>
+
+  <!-- Two-Column Grid Layout -->
+  <div class="event-detail-grid">
+    <!-- Left Column: Details, Spots, CTA, and Ticket Lookup -->
+    <div class="detail-col-primary">
+      <div class="detail-card">
+        <h3 class="card-section-title">Event Schedule & Venue</h3>
+        
+        <div class="detail-meta-list">
+          <div class="detail-meta-row">
+            <span class="meta-icon" aria-hidden="true">📅</span>
+            <div class="meta-content">
+              <span class="meta-label">Date</span>
+              <strong class="meta-value">{{ event.starts_at | cebuDate }}</strong>
+            </div>
+          </div>
+
+          <div class="detail-meta-row">
+            <span class="meta-icon" aria-hidden="true">🕐</span>
+            <div class="meta-content">
+              <span class="meta-label">Time (Asia/Manila)</span>
+              <span class="meta-value">{{ event.starts_at | cebuTime }} – {{ event.ends_at | cebuTime }}</span>
+            </div>
+          </div>
+
+          <div class="detail-meta-row">
+            <span class="meta-icon" aria-hidden="true">📍</span>
+            <div class="meta-content">
+              <span class="meta-label">Location</span>
+              <span class="meta-value">{{ event.venue }}</span>
+            </div>
+          </div>
+
+          <div class="detail-meta-row">
+            <span class="meta-icon" aria-hidden="true">🎟</span>
+            <div class="meta-content">
+              <span class="meta-label">Availability</span>
+              <span class="meta-value">
+                {% if event.is_full %}
+                  <strong class="text-danger">Sold Out — all {{ event.capacity }} spots taken</strong>
+                {% elif event.has_started %}
+                  <strong class="text-warning">Registration closed (event started)</strong>
+                {% else %}
+                  <strong class="text-success">{{ event.spots_left }}</strong> of {{ event.capacity }} spots left
+                {% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action / CTA Area -->
+        <div class="detail-action-box" style="margin-top: 1.5rem;">
+          {% if event.has_ended %}
+            <div class="alert alert-secondary">This event has already concluded. Thank you!</div>
+            <button class="btn btn-secondary btn-block btn-lg" disabled style="opacity: 0.6; cursor: not-allowed; justify-content: center;">
+              Event Concluded
+            </button>
+          {% elif event.has_started %}
+            <div class="alert alert-warning">This event is currently in progress. Registrations are closed.</div>
+            <button class="btn btn-secondary btn-block btn-lg" disabled style="opacity: 0.6; cursor: not-allowed; justify-content: center;">
+              Registration Closed
+            </button>
+          {% elif event.is_full %}
+            <div class="alert alert-danger">This event is currently sold out. All seats have been claimed.</div>
+            <button class="btn btn-secondary btn-block btn-lg" disabled style="opacity: 0.6; cursor: not-allowed; justify-content: center;">
+              Sold Out — No Spots Left
+            </button>
+          {% else %}
+            <a href="/events/{{ event.id }}/register" class="btn btn-cta btn-lg btn-block" style="text-align: center; justify-content: center;">
+              Register Now & Get QR Ticket →
+            </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Compact "Already registered?" Box -->
+      <div class="compact-lookup-box">
+        <div class="lookup-box-inner">
+          <span class="lookup-box-icon">🔍</span>
+          <div class="lookup-box-text">
+            <strong>Already registered for this event?</strong>
+            <span>Retrieve your QR pass anytime with your ticket code.</span>
+          </div>
+          <a href="/lookup" class="btn btn-secondary btn-sm lookup-action-btn">Find Ticket</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: About the Event & Important Information -->
+    <div class="detail-col-secondary">
+      <div class="detail-card">
+        <h3 class="card-section-title">About This Event</h3>
+        {% if event.description %}
+          <div class="event-prose-description">
+            <p>{{ event.description }}</p>
+          </div>
+        {% else %}
+          <p class="text-muted">No description provided for this event.</p>
+        {% endif %}
+      </div>
+
+      <div class="detail-card" style="margin-top: 1.25rem;">
+        <h3 class="card-section-title">Check-in Instructions</h3>
+        <ul class="detail-instructions-list">
+          <li><strong>Digital QR Pass:</strong> Show your QR ticket on your mobile device at the registration entrance.</li>
+          <li><strong>Fast Check-in:</strong> Dedicated scanners will validate your pass in under a second.</li>
+          <li><strong>Timezone:</strong> All schedule times are local to <strong>Cebu / Manila (UTC+8)</strong>.</li>
+        </ul>
+      </div>
+    </div>
   </div>
-  {% endif %}
-
-  {% if event.is_past %}
-    <div class="alert alert-secondary">This event has ended.</div>
-  {% elif event.is_full %}
-    <div class="alert alert-warning">This event is currently at full capacity. Join the waitlist to be automatically notified and queued if any spot opens.</div>
-    <a href="/events/{{ event.id }}/register" class="btn btn-secondary btn-lg btn-block" style="text-align: center; justify-content: center;">Join Waitlist →</a>
-  {% else %}
-    <a href="/events/{{ event.id }}/register" class="btn btn-cta btn-lg btn-block" style="text-align: center; justify-content: center;">Register Now & Get QR Ticket →</a>
-  {% endif %}
-
-  <hr style="margin:2rem 0 1.25rem 0; border:none; border-top:1px solid var(--color-border);">
-  <p class="small-note" style="text-align: center;">Already registered? <a href="/lookup">Look up your ticket</a></p>
 </div>
 {% endblock %}
