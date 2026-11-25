@@ -24,6 +24,11 @@ if (DATABASE_URL) {
     idleTimeoutMillis: 30000
   });
 
+  // Handle unexpected errors on idle pool connections (prevents unhandled ECONNRESET process crashes)
+  pool.on('error', (err) => {
+    console.warn('Notice: Idle PostgreSQL client disconnected or connection reset (auto-reconnecting):', err && err.message);
+  });
+
   const txStorage = new AsyncLocalStorage();
 
   function convertPlaceholders(sql) {
