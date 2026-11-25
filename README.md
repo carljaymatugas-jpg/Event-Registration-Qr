@@ -2,6 +2,7 @@
 
 A full-featured event registration and QR check-in web application built for the **Event Registration with QR Check-in — Intern Activity**.
 
+- **Live Website**: [https://event-registration-qr.vercel.app/](https://event-registration-qr.vercel.app/)
 - **Level Reached**: **Level 3 · Advanced (All 6 of 6 items completed for score 90–100)**
 - **Demo Event**: Cebu Dev Meetup 2026 · Ayala Center Cebu, Function Room 2 (Seeded Full: 30/30)
 - **Time Zone**: Cebu Local Time · `Asia/Manila` (UTC+8)
@@ -12,11 +13,12 @@ A full-featured event registration and QR check-in web application built for the
 
 - **Runtime**: Node.js (v18+ / v20+ / v22+ / v24+)
 - **Backend Framework**: Express.js
-- **Database**: SQLite with Write-Ahead Logging (WAL mode) and immediate transactions for race safety
-- **Templating Engine**: Nunjucks (server-side rendering)
-- **Authentication & Security**: `bcryptjs` password hashing, cookie-based SQLite-backed sessions, signed HMAC ticket tokens, `express-rate-limit`
+- **Database**: PostgreSQL (Neon) in production / SQLite with Write-Ahead Logging (WAL mode) and immediate transactions for local development
+- **Templating Engine**: Nunjucks (server-side rendering with autoescaping)
+- **Authentication & Security**: `bcryptjs` password hashing, cookie-based sessions, signed HMAC ticket tokens, `express-rate-limit`, role-based access control (`requireStaff` / `requireOrganizer`)
 - **QR Code Engine**: `qrcode` (server generation) + `html5-qrcode` (camera scanner with auto-reset & offline fallback)
 - **Mailing**: `nodemailer` with automatic Ethereal sandbox test mode (zero-config preview URLs in console)
+- **Hosting**: Vercel (`vercel.json`) + GitHub auto-deploy
 
 ---
 
@@ -53,10 +55,11 @@ npm run https
 ```
 Access via `https://<YOUR_LOCAL_IP>:3443`.
 
-### 6. Run Race Condition & Concurrency Tests
-Verify atomic transactions and double-booking prevention:
+### 6. Run Tests
+Verify atomic transactions, concurrency, and full-name validation:
 ```bash
 npm test
+node scripts/test_name_validation.js
 ```
 
 ---
@@ -155,9 +158,38 @@ npm test
 - Comprehensive audit trail recording who, what, when, visible on staff dashboard.
 
 ### 17. Deployment & HTTPS
+- Includes `vercel.json` and `api/index.js` for serverless deployment on Vercel with Neon PostgreSQL.
 - Includes `render.yaml` for 1-click cloud deployment with persistent storage.
 - Includes `Dockerfile` for Docker/VPS containerization.
 - Includes `scripts/https_server.js` for self-signed HTTPS mobile camera testing on local networks.
+
+---
+
+## 🔒 Security, Validation & UI/UX Improvements
+
+### Security Hardening
+- **No Exposed Credentials**: Staff sign-in page contains no hardcoded or demo credentials in the public UI.
+- **Brute-Force Rate Limiting**:
+  - Staff login (`POST /staff/login`): max 10 failed attempts per 15 minutes per IP (`staffLoginLimiter`).
+  - Registration (`POST /events/:id/register`): max 20 attempts per 15 minutes per IP (`registrationLimiter`).
+  - Ticket lookup (`/lookup`, `/ticket`): max 30 requests per 15 minutes per IP (`lookupLimiter`).
+- **Role-Based Access Control & Session Safety**: `requireStaff` and `requireOrganizer` enforce server-side authorization; `Cache-Control: no-store` headers prevent accessing protected pages via browser Back navigation after logout.
+- **Generic Lookup Errors**: Ticket lookup returns a uniform error message without revealing whether the ticket code or contact info was wrong.
+
+### Registration & Input Validation
+- **Strict Unicode Full Name Validation**:
+  - Enforced on both frontend (real-time `input`, `paste`, `blur`, and `submit`) and backend (`validateFullName()` in `src/routes/attendee.js`, plus a re-check inside the DB transaction).
+  - Accepts Unicode alphabetic letters and spaces (`^[\p{L}]+(?: +[\p{L}]+)*$/u`), supporting accents like `José`, `André`, `Ñora`, `Ü`.
+  - Rejects numbers, special characters, punctuation, emojis, control characters, whitespace-only input, and HTML/script tags.
+  - **Preserves original capitalization** exactly as entered when saving to the database and rendering tickets.
+- **Philippine Mobile Normalization**: Supports both `09XXXXXXXXX` and `+639XXXXXXXXX` formats, normalizing before duplicate checks.
+- **Capacity & Duplicate Integrity**: Atomic transaction checks prevent overselling and block duplicate registrations by email or mobile; registration closes automatically when an event starts or sells out.
+
+### UI/UX & Theme Consistency
+- **Sticky Navigation & Branding**: Sticky pill navbar with purple logo glow, smooth hover transitions, favicon, and clean tab titles.
+- **Upcoming Events (`/`)**: Search by title/venue/category, filter pills, sorting (date, spots left, title), pagination (5/10/25 per page), Card/List view toggle, and updated general events tagline.
+- **Event Detail (`/events/:id`) & Find Ticket (`/lookup`)**: Balanced two-column event detail layout, compact lookup prompt, vertically centered lookup card, and friendly 404 page for missing events.
+- **Light & Dark Mode Consistency**: Persistent `localStorage` theme selection, accessible theme toggle without duplicate icons, scrolling dotted background on dark mode, and matching dotted background on Staff Sign In.
 
 ---
 
