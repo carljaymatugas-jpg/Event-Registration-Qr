@@ -154,6 +154,15 @@
         });
       }
 
+      // Handle logged-out theme toggle (Staff Sign In page)
+      var checkboxLoggedOut = document.getElementById('themeCheckboxLoggedOut');
+      if (checkboxLoggedOut) {
+        checkboxLoggedOut.checked = (currentTheme === 'dark');
+        checkboxLoggedOut.addEventListener('change', function() {
+          updateThemeUI(this.checked ? 'dark' : 'light');
+        });
+      }
+
       // Mobile Sidebar Drawer Toggle
       var toggleBtn = document.getElementById('sidebarToggle');
       var sidebar = document.getElementById('staffSidebar');

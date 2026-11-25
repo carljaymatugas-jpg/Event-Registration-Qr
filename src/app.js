@@ -56,6 +56,32 @@ const checkinLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, max: 60,
   message: 'Too many check-in attempts.'
 });
+// Rate limit staff login: max 10 attempts per 15 minutes per IP
+const staffLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  handler: (req, res) => {
+    res.status(429).render('staff/login.html', {
+      error: 'Too many login attempts. Please try again in 15 minutes.'
+    });
+  }
+});
+// Rate limit registration: max 20 per 15 min per IP
+const registrationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    if (req.xhr || (req.headers.accept && req.headers.accept.includes('json'))) {
+      return res.status(429).json({ error: 'Too many registration attempts. Please try again later.' });
+    }
+    res.status(429).render('error.html', { message: 'Too many registration attempts. Please try again in 15 minutes.' });
+  }
+});
 
 // ── Middleware: inject user into every template ──────────────────────────────
 app.use((req, res, next) => {
@@ -67,8 +93,12 @@ app.use((req, res, next) => {
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/lookup', lookupLimiter);
+// Apply registration rate limiter to registration POST endpoints only
+app.post('/events/:id/register', registrationLimiter);
 app.use('/', require('./routes/attendee'));
 app.use('/ticket', lookupLimiter, require('./routes/ticket_view'));
+// Staff login rate limiting applied to POST only
+app.post('/staff/login', staffLoginLimiter);
 app.use('/staff', require('./routes/staff'));
 app.use('/staff/checkin', checkinLimiter, require('./routes/checkin'));
 app.use('/staff/events', require('./routes/events'));

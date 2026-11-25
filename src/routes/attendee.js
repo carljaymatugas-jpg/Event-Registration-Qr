@@ -9,12 +9,41 @@ const { getEventCategory } = require('../utils/category');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Unicode-aware name validation: only Unicode letters and spaces between name parts
+// Rejects numbers, symbols, emojis, and punctuation
+const FULL_NAME_UNICODE_RE = /^[\p{L}]+(?:\s+[\p{L}]+)*$/u;
+
 function sanitizeInput(str) {
   if (!str) return '';
   return String(str)
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // strip script tags and content
     .replace(/<[^>]+>/g, '') // strip remaining HTML tags
     .trim();
+}
+
+/**
+ * Validates a full name:
+ * - Only Unicode letters (\p{L}) and spaces allowed
+ * - No numbers, symbols, emojis, or punctuation
+ * - Rejects whitespace-only input
+ * - Preserves original capitalization
+ */
+function validateFullName(raw) {
+  if (!raw || typeof raw !== 'string') return { valid: false, msg: 'Full name is required.' };
+  // Strip leading/trailing whitespace only for validation; preserve interior spaces
+  const trimmed = raw.trim();
+  if (!trimmed) return { valid: false, msg: 'Full name cannot be empty or contain only spaces.' };
+  if (trimmed.length < 2) return { valid: false, msg: 'Full name must be at least 2 characters.' };
+  if (trimmed.length > 100) return { valid: false, msg: 'Full name cannot exceed 100 characters.' };
+  // Check for tab/newline/control characters
+  if (/[\t\n\r\x00-\x1F\x7F]/.test(trimmed)) {
+    return { valid: false, msg: 'Full name must contain letters and spaces only. Numbers, special characters, and emojis are not allowed.' };
+  }
+  // Unicode-aware: only letters and single spaces between name parts
+  if (!FULL_NAME_UNICODE_RE.test(trimmed)) {
+    return { valid: false, msg: 'Full name must contain letters and spaces only. Numbers, special characters, and emojis are not allowed.' };
+  }
+  return { valid: true, value: trimmed };
 }
 
 // Helper to decorate event object
@@ -140,12 +169,12 @@ router.post('/events/:id/register', async (req, res, next) => {
     const { full_name, email, mobile } = req.body;
     const errors = {};
 
-    // TC-01 & TC-05: Required fields, input sanitization & XSS prevention
-    const rawName = sanitizeInput(full_name || '');
-    if (!rawName || rawName.length < 2) {
-      errors.full_name = 'Full name is required (minimum 2 characters, without HTML tags).';
-    } else if (rawName.length > 100) {
-      errors.full_name = 'Full name cannot exceed 100 characters.';
+    // TC-01 & TC-05: Required fields, input sanitization, XSS prevention & full name validation
+    const rawNameInput = sanitizeInput(full_name || '');
+    const nameValidation = validateFullName(rawNameInput);
+    const rawName = nameValidation.valid ? nameValidation.value : rawNameInput;
+    if (!nameValidation.valid) {
+      errors.full_name = nameValidation.msg;
     }
 
     // TC-02a: Invalid email formats
@@ -197,10 +226,16 @@ router.post('/events/:id/register', async (req, res, next) => {
       const prefix = event.title.replace(/[^A-Z0-9]/gi, '').slice(0, 3).toUpperCase() || 'EVT';
       const ticketCode = generateTicketCode(prefix);
 
+      // Final safety check: re-validate name inside transaction before saving
+      const finalNameCheck = validateFullName(rawName);
+      if (!finalNameCheck.valid) {
+        return { error: 'invalid_name', message: finalNameCheck.msg };
+      }
+
       await db.prepare(`
         INSERT INTO registrations (event_id, full_name, email, mobile, ticket_code, status, registered_at)
         VALUES (?, ?, ?, ?, ?, 'Confirmed', ?)
-      `).run(event.id, rawName, rawEmail, cleanMobile, ticketCode, now);
+      `).run(event.id, finalNameCheck.value, rawEmail, cleanMobile, ticketCode, now);
 
       return { ticketCode, status: 'Confirmed' };
     });
@@ -220,6 +255,16 @@ router.post('/events/:id/register', async (req, res, next) => {
         });
       }
       throw err;
+    }
+
+    if (result && result.error === 'invalid_name') {
+      if (isJson) return res.status(400).json({ error: result.message, field: 'full_name' });
+      return res.status(400).render('register.html', {
+        event,
+        errors: { full_name: result.message },
+        values: req.body,
+        now
+      });
     }
 
     if (result.error === 'duplicate') {

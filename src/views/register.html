@@ -45,12 +45,12 @@
   {% endif %}
 
   <form method="POST" action="/events/{{ event.id }}/register" id="registrationForm" novalidate>
-    <div class="field {% if errors.full_name %}has-error{% endif %}">
+    <div class="field {% if errors.full_name %}has-error{% endif %}" id="fieldFullName">
       <label for="full_name">Full Name <span style="color:var(--color-danger)">*</span></label>
       <input type="text" id="full_name" name="full_name" value="{{ values.full_name or '' }}"
              placeholder="Juan Dela Cruz" autocomplete="name" maxlength="100" required
              {% if event.is_full or event.has_started %}disabled{% endif %}>
-      {% if errors.full_name %}<span class="field-error" role="alert">{{ errors.full_name }}</span>{% endif %}
+      {% if errors.full_name %}<span class="field-error" role="alert" id="nameError">{{ errors.full_name }}</span>{% else %}<span class="field-error" role="alert" id="nameError" style="display:none;"></span>{% endif %}
     </div>
 
     <div class="field {% if errors.email %}has-error{% endif %}">
@@ -92,10 +92,110 @@
   (function() {
     var form = document.getElementById('registrationForm');
     var btn = document.getElementById('submitRegBtn');
+    var nameInput = document.getElementById('full_name');
+
+    // Unicode-aware name validation (matches backend regex)
+    // Only Unicode letters (\p{L}) and spaces between name parts allowed
+    function validateName(val) {
+      var trimmed = (val || '').trim();
+      if (!trimmed) return 'Full name is required.';
+      if (trimmed.length < 2) return 'Full name must be at least 2 characters.';
+      if (trimmed.length > 100) return 'Full name cannot exceed 100 characters.';
+      // Check for control characters / tabs / newlines
+      if (/[\t\n\r\x00-\x1F\x7F]/.test(trimmed)) {
+        return 'Full name must contain letters and spaces only. Numbers, special characters, and emojis are not allowed.';
+      }
+      // Unicode letter + space validation
+      // We use a broad emoji/symbol/digit check as browsers vary in Unicode regex support
+      // Check: must only have letters (broad unicode) and spaces
+      var invalid = false;
+      var codePoints = Array.from(trimmed);
+      for (var i = 0; i < codePoints.length; i++) {
+        var cp = codePoints[i];
+        var code = cp.codePointAt(0);
+        // Allow space (0x20)
+        if (cp === ' ') continue;
+        // Reject digits
+        if (cp >= '0' && cp <= '9') { invalid = true; break; }
+        // Reject ASCII symbols / punctuation (0x21-0x2F, 0x3A-0x40, 0x5B-0x60, 0x7B-0x7E)
+        if (code >= 0x21 && code <= 0x7E) {
+          if (!((code >= 0x41 && code <= 0x5A) || (code >= 0x61 && code <= 0x7A))) {
+            invalid = true; break;
+          }
+        }
+        // Reject emoji/pictographs (broad ranges)
+        if (code >= 0x1F300) { invalid = true; break; }
+        // Reject mathematical/misc symbols
+        if (code >= 0x2000 && code <= 0x2BFF) { invalid = true; break; }
+      }
+      if (invalid) {
+        return 'Full name must contain letters and spaces only. Numbers, special characters, and emojis are not allowed.';
+      }
+      // Reject names that are only spaces
+      if (!trimmed) return 'Full name cannot be empty or contain only spaces.';
+      return null; // valid
+    }
+
+    function getOrCreateErrorSpan() {
+      var field = nameInput ? nameInput.closest('.field') : null;
+      if (!field) return null;
+      var existing = field.querySelector('.field-error');
+      if (existing) return existing;
+      var span = document.createElement('span');
+      span.className = 'field-error';
+      span.setAttribute('role', 'alert');
+      field.appendChild(span);
+      return span;
+    }
+
+    var nameTouched = false;
+
+    if (nameInput) {
+      // Real-time validation on input (typing and paste)
+      nameInput.addEventListener('input', function() {
+        nameTouched = true;
+        validateAndShowName();
+      });
+      nameInput.addEventListener('paste', function() {
+        // validate after paste applies
+        setTimeout(function() {
+          nameTouched = true;
+          validateAndShowName();
+        }, 0);
+      });
+      nameInput.addEventListener('blur', function() {
+        nameTouched = true;
+        validateAndShowName();
+      });
+    }
+
+    function validateAndShowName() {
+      if (!nameInput) return;
+      var field = nameInput.closest('.field');
+      var errSpan = getOrCreateErrorSpan();
+      var msg = validateName(nameInput.value);
+      if (msg) {
+        field && field.classList.add('has-error');
+        if (errSpan) { errSpan.textContent = msg; errSpan.style.display = ''; }
+      } else {
+        field && field.classList.remove('has-error');
+        if (errSpan) { errSpan.textContent = ''; errSpan.style.display = 'none'; }
+      }
+    }
+
     if (form && btn) {
       form.addEventListener('submit', function(e) {
         if (btn.disabled) {
           e.preventDefault();
+          return false;
+        }
+        // Final name check before submit
+        nameTouched = true;
+        var nameMsg = validateName(nameInput ? nameInput.value : '');
+        if (nameMsg) {
+          e.preventDefault();
+          validateAndShowName();
+          nameInput && nameInput.focus();
           return false;
         }
         // Client-side instant lock against double click

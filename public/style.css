@@ -196,14 +196,25 @@ body {
     radial-gradient(circle, rgba(56, 189, 248, 0.08) 1.2px, transparent 1.2px),
     linear-gradient(180deg, var(--color-bg) 0%, var(--color-bg-end) 100%);
   background-attachment: scroll;
+  background-size: 28px 28px, 100% 100%;
 }
 
 .staff-body {
   background-color: var(--color-bg);
+  background-image:
+    radial-gradient(circle, rgba(99, 102, 241, 0.10) 1.2px, transparent 1.2px),
+    linear-gradient(180deg, var(--color-bg) 0%, var(--color-bg-end) 100%);
+  background-size: 28px 28px, 100% 100%;
+  background-attachment: scroll;
 }
 
 [data-theme="dark"] .staff-body {
   background-color: var(--color-bg);
+  background-image:
+    radial-gradient(circle, rgba(56, 189, 248, 0.07) 1.2px, transparent 1.2px),
+    linear-gradient(180deg, var(--color-bg) 0%, var(--color-bg-end) 100%);
+  background-size: 28px 28px, 100% 100%;
+  background-attachment: scroll;
 }
 
 a { color: var(--color-primary); text-decoration: none; transition: color var(--transition); }
