@@ -4,6 +4,11 @@ A step-by-step live walkthrough covering every core, intermediate, and advanced 
 
 - **Live URL**: https://event-registration-qr.vercel.app/
 - **Staff Portal**: https://event-registration-qr.vercel.app/staff/login
+- **Demo Staff Credentials**:
+  | Role | Username | Password | Permissions |
+  |---|---|---|---|
+  | **Organizer** | `organizer` | `organizer123` | Full access: Events, Attendees, Waitlist Promotion, CSV Export, Check-in |
+  | **Door Staff** | `doorstaff` | `door123` | Door QR Scanner & check-in only (restricted from organizer pages) |
 - **Mobile Viewport Recommendation**: Chrome DevTools Device Toolbar → iPhone 14 (`390×844`) or Android (`360×800`).
 
 ---

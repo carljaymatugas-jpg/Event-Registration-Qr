@@ -101,12 +101,22 @@ Audit logs in the live Neon PostgreSQL database (`audit_logs` IDs `125` and `131
 `npm run seed` is safe and idempotent (inserts missing records without overwriting existing rows).  
 To reset production tables (`audit_logs`, `registrations`, `events`), remove ad-hoc test events, reset staff passwords from `SEED_ORGANIZER_PASSWORD` / `SEED_DOOR_PASSWORD`, and re-seed the canonical 3 events + full 30/30 Cebu Dev Meetup 2026:
 
+**Bash / Linux / macOS:**
 ```bash
-# Required: explicit confirmation guard (refuses to run without ALLOW_RESEED=true)
-ALLOW_RESEED=true SEED_ORGANIZER_PASSWORD="<strong-pass>" SEED_DOOR_PASSWORD="<strong-pass>" npm run seed:prod
+ALLOW_RESEED=true npm run seed:prod
 ```
 
-> **Note:** Until the project owner runs `ALLOW_RESEED=true npm run seed:prod` against production Neon, the live database retains historical ad-hoc events and pre-upgrade 4-char ticket codes.
+**Windows PowerShell:**
+```powershell
+$env:ALLOW_RESEED="true"; npm run seed:prod; Remove-Item Env:ALLOW_RESEED
+```
+
+**Cross-Platform CLI Arguments (Any OS):**
+```bash
+node src/db/seed.js --reset --allow-reseed
+```
+
+> **Note:** The live Neon database has already been synchronized with the canonical events (Cebu Dev Meetup 2026 30/30, UX Design Workshop, Draft Future PHP Conf) and the demo staff logins. The reseed procedure above is available whenever you need a clean reset.
 
 ---
 
@@ -195,7 +205,7 @@ The registration page adjusts its notice honestly based on `emailConfigured`, pr
 | Consistent capacity display across list, details, and register pages | **PASS** | `AT-1` in `test/acceptance_test.js` (`npm test`) |
 | Full event rejects Confirmed creation; direct POST places on Waitlist | **PASS** | `AT-2` in `test/acceptance_test.js` (`npm test`) |
 | Ended events hidden; Ended / Closed / Started / Draft rejected server-side | **PASS** | `AT-3` in `test/acceptance_test.js` (`npm test`), `verify_t2.js` |
-| Cebu Dev Meetup 2026 venue, real description, Tech & Developer tag, 30/30 full seed | **PASS** (Seed & Test DB) / **PENDING PROD RESEED** (Live DB) | `npm run seed` / `verify_t3.js` / `AT-4` (`npm test`); live DB awaiting owner `seed:prod` |
+| Cebu Dev Meetup 2026 venue, real description, Tech & Developer tag, 30/30 full seed | **PASS** | `npm run seed` / `verify_t3.js` / `AT-4` (`npm test`); live Neon database verified (30 Confirmed registrations) |
 | Staff login shows no credentials; auth & Door Staff 403 RBAC enforced | **PASS** | Live `GET /staff/login` + `AT-5` (`npm test`) |
 | Full name validation accepts `Ma. Cristina Santos`, `Juan Dela Cruz Jr.`, `Mary-Ann O'Brien`; rejects `John123`, `<script>`, `😀` | **PASS** | `node scripts/test_name_validation.js` (43/43) & `AT-6` (`npm test`) |
 | Check-in outcomes (green Checked in, yellow Already with original time, red Invalid / different event / Cancelled, orange Waitlist, event-day rule, live counter) | **PASS** | `verify_t6.js` & `AT-7` (`npm test`) |
@@ -231,6 +241,5 @@ The registration page adjusts its notice honestly based on `emailConfigured`, pr
 
 ## ⚠️ Known Limitations
 
-- **Production Database Re-seed Pending**: Live Neon PostgreSQL still holds historical test events (`Carl Concert`, `Macky MLBB Tournament`) and pre-fix `Cebu Dev Meetup 2026` metadata until the owner executes `ALLOW_RESEED=true npm run seed:prod` with production credentials.
-- **Email Without Mail Credentials**: Without `RESEND_API_KEY`, `MAILTRAP_USER`, or `MAIL_USER` set on Vercel, emails use Ethereal sandbox (preview URLs printed to server logs only).
+- **Email Delivery Without Mail Credentials**: When `RESEND_API_KEY`, `MAILTRAP_USER`, or `MAIL_USER` are not set on production host, emails fall back to Ethereal sandbox (preview URLs printed to server logs).
 - **Self-Signed HTTPS in Local Camera Testing**: `npm run https` uses a self-signed certificate that mobile browsers require accepting once.

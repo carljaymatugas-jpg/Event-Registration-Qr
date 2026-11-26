@@ -15,12 +15,15 @@ async function runSeed(options = {}) {
   const reset = Boolean(options.reset);
   const closePool = Boolean(options.closePool);
 
-  if (reset && process.env.ALLOW_RESEED !== 'true') {
-    throw new Error('Refusing reset/reseed: set ALLOW_RESEED=true explicitly.');
+  const allowReseed = process.env.ALLOW_RESEED === 'true' || process.argv.includes('--allow-reseed');
+  if (reset && !allowReseed) {
+    throw new Error('Refusing reset/reseed: set ALLOW_RESEED=true or pass --allow-reseed explicitly.');
   }
 
-  const orgPassword = process.env.SEED_ORGANIZER_PASSWORD || 'organizer123';
-  const doorPassword = process.env.SEED_DOOR_PASSWORD || 'door123';
+  const orgArg = process.argv.find(a => a.startsWith('--org-password='));
+  const doorArg = process.argv.find(a => a.startsWith('--door-password='));
+  const orgPassword = (orgArg ? orgArg.slice('--org-password='.length) : null) || process.env.SEED_ORGANIZER_PASSWORD || 'organizer123';
+  const doorPassword = (doorArg ? doorArg.slice('--door-password='.length) : null) || process.env.SEED_DOOR_PASSWORD || 'door123';
 
   if (reset) {
     console.log('ALLOW_RESEED=true detected — resetting events, registrations, and audit logs...');
@@ -47,7 +50,7 @@ async function runSeed(options = {}) {
       await db.prepare('INSERT INTO staff_users (name, username, password_hash, role) VALUES (?,?,?,?)')
         .run(name, username, hash, role);
       console.log(`Seeded staff user: ${username} (${role})`);
-    } else if (reset) {
+    } else if (reset || process.argv.includes('--update-passwords')) {
       const hash = bcrypt.hashSync(password, 12);
       await db.prepare('UPDATE staff_users SET name = ?, password_hash = ?, role = ? WHERE username = ?')
         .run(name, hash, role, username);
