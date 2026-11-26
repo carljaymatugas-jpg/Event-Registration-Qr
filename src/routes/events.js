@@ -4,6 +4,7 @@ const db = require('../db/db');
 const { requireStaff, requireOrganizer } = require('../middleware/auth');
 const { nowCebu } = require('../utils/time');
 const audit = require('../utils/audit');
+const { getConfirmedCount } = require('../utils/availability');
 
 router.use(requireStaff);
 
@@ -97,8 +98,7 @@ async function validateAndSave(req, res, existingEvent) {
   if (!cap || cap < 1) errors.capacity = 'Capacity must be at least 1.';
 
   if (existingEvent && cap) {
-    const confirmedRow = await db.prepare(`SELECT COUNT(*) AS c FROM registrations WHERE event_id=? AND status IN ('Confirmed','CheckedIn')`).get(existingEvent.id);
-    const confirmed = (confirmedRow && confirmedRow.c) || 0;
+    const confirmed = await getConfirmedCount(existingEvent.id);
     if (cap < confirmed) errors.capacity = `Cannot lower capacity below current confirmed registrations (${confirmed}).`;
   }
 

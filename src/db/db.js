@@ -216,10 +216,13 @@ if (DATABASE_URL) {
       WHERE status IN ('Confirmed','CheckedIn','Waitlisted');
   `);
 
+  module.exports = db;
+
   try {
     const org = db.prepare('SELECT id FROM staff_users WHERE username = ?').get('organizer');
-    if (!org) {
-      require('./seed');
+    if (!org && process.env.SKIP_AUTO_SEED !== 'true') {
+      const seed = require('./seed');
+      if (typeof seed === 'function') seed().catch(e => console.warn('Auto-seed error:', e.message));
     }
   } catch (e) {
     console.warn('Auto-seed check:', e.message);

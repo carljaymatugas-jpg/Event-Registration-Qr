@@ -4,6 +4,7 @@ const db = require('../db/db');
 const { requireStaff } = require('../middleware/auth');
 const { nowCebu } = require('../utils/time');
 const audit = require('../utils/audit');
+const { getEventsWithAvailability } = require('../utils/availability');
 
 router.use(requireStaff);
 
@@ -136,19 +137,19 @@ async function getDashboardAnalytics(eventId = 'all', range = 'all') {
     };
   });
 
-  // Events list for comparison and filter dropdown
-  const events = await db.prepare(`
-    SELECT e.id, e.title, e.capacity, e.status, e.starts_at, e.venue,
-      SUM(CASE WHEN r.status IN ('Confirmed', 'CheckedIn') THEN 1 ELSE 0 END) AS active_confirmed,
-      SUM(CASE WHEN r.status = 'CheckedIn' THEN 1 ELSE 0 END) AS checked_in,
-      SUM(CASE WHEN r.status = 'Waitlisted' THEN 1 ELSE 0 END) AS waitlisted,
-      SUM(CASE WHEN r.status = 'Cancelled' THEN 1 ELSE 0 END) AS cancelled
-    FROM events e
-    LEFT JOIN registrations r ON r.event_id = e.id
-    WHERE e.status IN ('Published', 'Closed')
-    GROUP BY e.id, e.title, e.capacity, e.status, e.starts_at, e.venue
-    ORDER BY e.starts_at ASC
-  `).all();
+  const events = await getEventsWithAvailability({ statuses: ['Published', 'Closed'], order: 'ASC' });
+  const mappedEvents = events.map(e => ({
+    id: e.id,
+    title: e.title,
+    capacity: e.capacity,
+    status: e.status,
+    starts_at: e.starts_at,
+    venue: e.venue,
+    active_confirmed: e.confirmed_count,
+    checked_in: e.checked_in_count,
+    waitlisted: e.waitlisted_count,
+    cancelled: e.cancelled_count
+  }));
 
   return {
     summary: {
@@ -163,7 +164,7 @@ async function getDashboardAnalytics(eventId = 'all', range = 'all') {
       capacity_rate: capacityRate
     },
     timeline,
-    events
+    events: mappedEvents
   };
 }
 
@@ -185,32 +186,21 @@ router.get('/api/stats', async (req, res, next) => {
 router.get('/', async (req, res, next) => {
   try {
     const now = nowCebu();
-    const events = await db.prepare(`SELECT * FROM events WHERE status IN ('Published','Closed') ORDER BY starts_at DESC`).all();
+    const events = await getEventsWithAvailability({ statuses: ['Published', 'Closed'], order: 'DESC' });
 
-    const stats = await Promise.all(events.map(async ev => {
-      const s = await db.prepare(`
-        SELECT
-          SUM(CASE WHEN status IN ('Confirmed','CheckedIn') THEN 1 ELSE 0 END) AS confirmed,
-          SUM(CASE WHEN status = 'CheckedIn' THEN 1 ELSE 0 END) AS checked_in,
-          SUM(CASE WHEN status = 'Waitlisted' THEN 1 ELSE 0 END) AS waitlisted,
-          SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) AS cancelled
-        FROM registrations WHERE event_id = ?
-      `).get(ev.id);
-
+    const stats = events.map(ev => {
       const hasStarted = now >= ev.starts_at;
-      const confirmedCount = (s && s.confirmed) || 0;
-      const checkedInCount = (s && s.checked_in) || 0;
-      const noShows = hasStarted ? Math.max(0, confirmedCount - checkedInCount) : '—';
+      const noShows = hasStarted ? Math.max(0, ev.confirmed_count - ev.checked_in_count) : '—';
 
       return {
         ...ev,
-        confirmed: confirmedCount,
-        checked_in: checkedInCount,
-        waitlisted: (s && s.waitlisted) || 0,
-        cancelled: (s && s.cancelled) || 0,
+        confirmed: ev.confirmed_count,
+        checked_in: ev.checked_in_count,
+        waitlisted: ev.waitlisted_count,
+        cancelled: ev.cancelled_count,
         no_shows: noShows
       };
-    }));
+    });
 
     // Audit log (last 50 entries)
     const logs = await db.prepare(`

@@ -5,7 +5,7 @@ const { nowCebu } = require('../utils/time');
 const { generateTicketCode } = require('../utils/ticket');
 const { sendConfirmationEmail } = require('../utils/mailer');
 const { normalizePHMobile, isValidPHMobile } = require('../utils/phone');
-const { getEventCategory } = require('../utils/category');
+const { getEventAvailability, getConfirmedCount, getEventsWithAvailability } = require('../utils/availability');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -46,33 +46,11 @@ function validateFullName(raw) {
   return { valid: true, value: trimmed };
 }
 
-// Helper to decorate event object
-function decorateEvent(ev, now) {
-  ev.spots_left = Math.max(0, ev.capacity - (ev.confirmed_count || 0));
-  ev.is_full = ev.spots_left <= 0;
-  ev.has_started = ev.starts_at <= now;
-  ev.has_ended = ev.ends_at <= now;
-  ev.is_past = ev.has_ended;
-  ev.is_closed = ev.has_started || ev.is_full || ev.status === 'Closed';
-  ev.category = getEventCategory(ev.title, ev.description);
-  ev.is_free = true; // All community events currently have free admission
-  return ev;
-}
-
 // Home — event list (attendee)
 router.get('/', async (req, res, next) => {
   try {
     const now = nowCebu();
-    const events = await db.prepare(`
-      SELECT e.*,
-        (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.id AND r.status IN ('Confirmed','CheckedIn')) AS confirmed_count
-      FROM events e
-      WHERE e.status = 'Published'
-      ORDER BY e.starts_at ASC
-    `).all();
-
-    events.forEach(ev => decorateEvent(ev, now));
-
+    const events = await getEventsWithAvailability({ statuses: ['Published'], order: 'ASC' });
     res.render('index.html', { events, now });
   } catch (err) {
     next(err);
@@ -82,17 +60,10 @@ router.get('/', async (req, res, next) => {
 // Event detail page
 router.get('/events/:id', async (req, res, next) => {
   try {
-    const event = await db.prepare(`
-      SELECT e.*,
-        (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.id AND r.status IN ('Confirmed','CheckedIn')) AS confirmed_count
-      FROM events e WHERE e.id = ? AND e.status = 'Published'
-    `).get(req.params.id);
-
-    if (!event) return res.status(404).render('404.html');
+    const event = await getEventAvailability(req.params.id);
+    if (!event || event.status !== 'Published') return res.status(404).render('404.html');
 
     const now = nowCebu();
-    decorateEvent(event, now);
-
     res.render('event_detail.html', { event, now });
   } catch (err) {
     next(err);
@@ -102,17 +73,10 @@ router.get('/events/:id', async (req, res, next) => {
 // GET registration form
 router.get('/events/:id/register', async (req, res, next) => {
   try {
-    const event = await db.prepare(`
-      SELECT e.*,
-        (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.id AND r.status IN ('Confirmed','CheckedIn')) AS confirmed_count
-      FROM events e WHERE e.id = ? AND e.status = 'Published'
-    `).get(req.params.id);
-
-    if (!event) return res.status(404).render('404.html');
+    const event = await getEventAvailability(req.params.id);
+    if (!event || event.status !== 'Published') return res.status(404).render('404.html');
 
     const now = nowCebu();
-    decorateEvent(event, now);
-
     res.render('register.html', { event, errors: {}, values: {}, now });
   } catch (err) {
     next(err);
@@ -123,20 +87,14 @@ router.get('/events/:id/register', async (req, res, next) => {
 router.post('/events/:id/register', async (req, res, next) => {
   try {
     const now = nowCebu();
-    const event = await db.prepare(`
-      SELECT e.*,
-        (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.id AND r.status IN ('Confirmed','CheckedIn')) AS confirmed_count
-      FROM events e WHERE e.id = ? AND e.status = 'Published'
-    `).get(req.params.id);
+    const event = await getEventAvailability(req.params.id);
 
-    if (!event) {
+    if (!event || event.status !== 'Published') {
       if (req.xhr || req.headers.accept?.includes('json')) {
         return res.status(404).json({ error: 'Event not found or not published.' });
       }
       return res.status(404).render('404.html');
     }
-
-    decorateEvent(event, now);
 
     const isJson = req.xhr || req.headers.accept?.includes('json');
 
@@ -154,17 +112,8 @@ router.post('/events/:id/register', async (req, res, next) => {
       });
     }
 
-    // TC-04: Sold out capacity enforcement
-    if (event.is_full) {
-      const soldOutMsg = 'This event is sold out. No spots remaining.';
-      if (isJson) return res.status(400).json({ error: soldOutMsg });
-      return res.status(400).render('register.html', {
-        event,
-        errors: { form: soldOutMsg },
-        values: req.body,
-        now
-      });
-    }
+    // Note: Waitlist is open for full upcoming Published events;
+    // capacity is checked atomically inside the transaction below.
 
     const { full_name, email, mobile } = req.body;
     const errors = {};
@@ -197,31 +146,24 @@ router.post('/events/:id/register', async (req, res, next) => {
       return res.status(400).render('register.html', { event, errors, values: req.body, now });
     }
 
-    // Atomic transaction for capacity check and duplicate check
+    // Atomic transaction for capacity check, waitlist placement, and duplicate check
     const registerTx = db.transaction(async () => {
-      // TC-03: Duplicate registration by email OR phone
+      // Check duplicate across Confirmed, CheckedIn, and Waitlisted
       const dup = await db.prepare(`
-        SELECT id, email, mobile, ticket_code FROM registrations
-        WHERE event_id = ? AND (LOWER(email) = ? OR mobile = ?) AND status IN ('Confirmed','CheckedIn')
+        SELECT id, email, mobile, ticket_code, status FROM registrations
+        WHERE event_id = ? AND (LOWER(email) = ? OR mobile = ?) AND status IN ('Confirmed','CheckedIn','Waitlisted')
       `).get(event.id, rawEmail, cleanMobile);
 
       if (dup) {
         const field = dup.email.toLowerCase() === rawEmail ? 'email' : 'mobile';
-        const msg = field === 'email'
-          ? 'This email address is already registered for this event.'
-          : 'This mobile number is already registered for this event.';
+        const msg = dup.status === 'Waitlisted'
+          ? (field === 'email' ? 'This email address is already on the waitlist for this event.' : 'This mobile number is already on the waitlist for this event.')
+          : (field === 'email' ? 'This email address is already registered for this event.' : 'This mobile number is already registered for this event.');
         return { error: 'duplicate', field, message: msg };
       }
 
-      // Re-read current confirmed count atomically inside the transaction
-      const confirmedRow = await db.prepare(`
-        SELECT COUNT(*) AS c FROM registrations WHERE event_id = ? AND status IN ('Confirmed','CheckedIn')
-      `).get(event.id);
-      const currentConfirmed = (confirmedRow && confirmedRow.c) || 0;
-
-      if (currentConfirmed >= event.capacity) {
-        return { error: 'sold_out', message: 'This event is sold out. No spots remaining.' };
-      }
+      // Re-read confirmed count atomically inside transaction using shared helper
+      const currentConfirmed = await getConfirmedCount(event.id);
 
       const prefix = event.title.replace(/[^A-Z0-9]/gi, '').slice(0, 3).toUpperCase() || 'EVT';
       const ticketCode = generateTicketCode(prefix);
@@ -230,6 +172,18 @@ router.post('/events/:id/register', async (req, res, next) => {
       const finalNameCheck = validateFullName(rawName);
       if (!finalNameCheck.valid) {
         return { error: 'invalid_name', message: finalNameCheck.msg };
+      }
+
+      if (currentConfirmed >= event.capacity) {
+        const posRow = await db.prepare(`
+          SELECT COUNT(*) + 1 AS pos FROM registrations WHERE event_id = ? AND status = 'Waitlisted'
+        `).get(event.id);
+        const pos = Number((posRow && posRow.pos) || 1);
+        await db.prepare(`
+          INSERT INTO registrations (event_id, full_name, email, mobile, ticket_code, status, waitlist_pos, registered_at)
+          VALUES (?, ?, ?, ?, ?, 'Waitlisted', ?, ?)
+        `).run(event.id, finalNameCheck.value, rawEmail, cleanMobile, ticketCode, pos, now);
+        return { ticketCode, status: 'Waitlisted', waitlistPos: pos };
       }
 
       await db.prepare(`
@@ -277,33 +231,27 @@ router.post('/events/:id/register', async (req, res, next) => {
       });
     }
 
-    if (result.error === 'sold_out') {
-      if (isJson) return res.status(400).json({ error: result.message });
-      return res.status(400).render('register.html', {
-        event,
-        errors: { form: result.message },
-        values: req.body,
-        now
-      });
-    }
-
-    // Asynchronously send email without blocking the response or losing registration on fail
-    const reg = await db.prepare('SELECT * FROM registrations WHERE ticket_code = ?').get(result.ticketCode);
-    if (reg) {
-      sendConfirmationEmail(reg, event).catch(err => {
-        console.error('Email dispatch notice (non-fatal):', err && err.message);
-      });
+    // Send confirmation email asynchronously when Confirmed
+    if (result.status === 'Confirmed') {
+      const reg = await db.prepare('SELECT * FROM registrations WHERE ticket_code = ?').get(result.ticketCode);
+      if (reg) {
+        sendConfirmationEmail(reg, event).catch(err => {
+          console.error('Email dispatch notice (non-fatal):', err && err.message);
+        });
+      }
     }
 
     if (isJson) {
       return res.status(201).json({
         success: true,
+        status: result.status,
+        waitlistPos: result.waitlistPos || null,
         ticketCode: result.ticketCode,
         redirectUrl: `/ticket/${result.ticketCode}?email=${encodeURIComponent(rawEmail)}`
       });
     }
 
-    // Redirect to ticket confirmation page
+    // Redirect to ticket page (works for Confirmed and Waitlisted)
     res.redirect(`/ticket/${result.ticketCode}?email=${encodeURIComponent(rawEmail)}`);
   } catch (err) {
     next(err);

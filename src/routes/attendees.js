@@ -5,13 +5,14 @@ const { requireStaff, requireOrganizer } = require('../middleware/auth');
 const { nowCebu } = require('../utils/time');
 const audit = require('../utils/audit');
 const { sendWaitlistPromotionEmail } = require('../utils/mailer');
+const { getEventAvailability, getConfirmedCount } = require('../utils/availability');
 
 router.use(requireStaff);
 
 // GET attendee list for an event
 router.get('/:event_id', async (req, res, next) => {
   try {
-    const event = await db.prepare('SELECT * FROM events WHERE id = ?').get(req.params.event_id);
+    const event = await getEventAvailability(req.params.event_id);
     if (!event) return res.status(404).render('404.html');
 
     const q = req.query.q ? `%${req.query.q}%` : null;
@@ -19,14 +20,12 @@ router.get('/:event_id', async (req, res, next) => {
       ? await db.prepare(`SELECT * FROM registrations WHERE event_id=? AND (full_name LIKE ? OR ticket_code LIKE ?) ORDER BY registered_at DESC`).all(event.id, q, q)
       : await db.prepare(`SELECT * FROM registrations WHERE event_id=? ORDER BY registered_at DESC`).all(event.id);
 
-    const stats = await db.prepare(`
-      SELECT
-        SUM(CASE WHEN status IN ('Confirmed','CheckedIn') THEN 1 ELSE 0 END) AS confirmed,
-        SUM(CASE WHEN status = 'CheckedIn' THEN 1 ELSE 0 END) AS checked_in,
-        SUM(CASE WHEN status = 'Waitlisted' THEN 1 ELSE 0 END) AS waitlisted,
-        SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) AS cancelled
-      FROM registrations WHERE event_id=?
-    `).get(event.id);
+    const stats = {
+      confirmed: event.confirmed_count,
+      checked_in: event.checked_in_count,
+      waitlisted: event.waitlisted_count,
+      cancelled: event.cancelled_count
+    };
 
     res.render('staff/attendees.html', { event, rows, stats, q: req.query.q || '', flash: req.query.msg || null });
   } catch (err) {
@@ -59,8 +58,7 @@ router.post('/:event_id/uncancel/:reg_id', requireOrganizer, async (req, res, ne
     if (!reg || !event) return res.redirect(`/staff/attendees/${req.params.event_id}?msg=Registration not found.`);
 
     const restore = db.transaction(async () => {
-      const confirmedRow = await db.prepare(`SELECT COUNT(*) AS c FROM registrations WHERE event_id=? AND status IN ('Confirmed','CheckedIn')`).get(event.id);
-      const confirmed = (confirmedRow && confirmedRow.c) || 0;
+      const confirmed = await getConfirmedCount(event.id);
       if (confirmed >= event.capacity) return { error: 'Event is full — cannot restore as Confirmed.' };
 
       const dup = await db.prepare(`SELECT id FROM registrations WHERE event_id=? AND email=? AND status IN ('Confirmed','CheckedIn','Waitlisted')`).get(event.id, reg.email);
@@ -104,8 +102,7 @@ router.post('/:event_id/promote/:reg_id', requireOrganizer, async (req, res, nex
     if (!reg || !event) return res.redirect(`/staff/attendees/${req.params.event_id}?msg=Not found.`);
 
     const promote = db.transaction(async () => {
-      const confirmedRow = await db.prepare(`SELECT COUNT(*) AS c FROM registrations WHERE event_id=? AND status IN ('Confirmed','CheckedIn')`).get(event.id);
-      const confirmed = (confirmedRow && confirmedRow.c) || 0;
+      const confirmed = await getConfirmedCount(event.id);
       if (confirmed >= event.capacity) return false;
       await db.prepare(`UPDATE registrations SET status='Confirmed', waitlist_pos=NULL WHERE id=?`).run(reg.id);
       return true;

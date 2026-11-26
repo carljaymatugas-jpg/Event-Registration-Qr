@@ -5,6 +5,7 @@ const { requireStaff } = require('../middleware/auth');
 const { verifyTicketCode } = require('../utils/ticket');
 const { nowCebu } = require('../utils/time');
 const audit = require('../utils/audit');
+const { getEventAvailability } = require('../utils/availability');
 
 router.use(requireStaff);
 
@@ -13,16 +14,10 @@ router.get('/', async (req, res, next) => {
   try {
     const events = await db.prepare(`SELECT * FROM events WHERE status IN ('Published','Closed') ORDER BY starts_at DESC`).all();
     const selectedId = req.query.event_id ? parseInt(req.query.event_id) : (events[0] ? events[0].id : null);
-    const selectedEvent = selectedId ? await db.prepare('SELECT * FROM events WHERE id = ?').get(selectedId) : null;
+    const selectedEvent = selectedId ? await getEventAvailability(selectedId) : null;
 
-    let checkedIn = 0;
-    let confirmed = 0;
-    if (selectedId) {
-      const checkedInRow = await db.prepare(`SELECT COUNT(*) AS c FROM registrations WHERE event_id=? AND status='CheckedIn'`).get(selectedId);
-      checkedIn = (checkedInRow && checkedInRow.c) || 0;
-      const confirmedRow = await db.prepare(`SELECT COUNT(*) AS c FROM registrations WHERE event_id=? AND status IN ('Confirmed','CheckedIn')`).get(selectedId);
-      confirmed = (confirmedRow && confirmedRow.c) || 0;
-    }
+    const checkedIn = selectedEvent ? selectedEvent.checked_in_count : 0;
+    const confirmed = selectedEvent ? selectedEvent.confirmed_count : 0;
 
     res.render('staff/checkin.html', { events, selectedEvent, selectedId, checkedIn, confirmed, result: null });
   } catch (err) {
@@ -36,12 +31,9 @@ router.post('/', async (req, res, next) => {
     const { ticket_code, event_id } = req.body;
     const events = await db.prepare(`SELECT * FROM events WHERE status IN ('Published','Closed') ORDER BY starts_at DESC`).all();
     const selectedId = parseInt(event_id);
-    const selectedEvent = await db.prepare('SELECT * FROM events WHERE id = ?').get(selectedId);
+    const selectedEvent = await getEventAvailability(selectedId);
 
-    const checkedInRow = await db.prepare(`SELECT COUNT(*) AS c FROM registrations WHERE event_id=? AND status='CheckedIn'`).get(selectedId);
-    const confirmedRow = await db.prepare(`SELECT COUNT(*) AS c FROM registrations WHERE event_id=? AND status IN ('Confirmed','CheckedIn')`).get(selectedId);
-    const checkedIn = (checkedInRow && checkedInRow.c) || 0;
-    const confirmed = (confirmedRow && confirmedRow.c) || 0;
+    const confirmed = selectedEvent ? selectedEvent.confirmed_count : 0;
 
     const code = (ticket_code || '').trim().toUpperCase();
     let result;
@@ -81,8 +73,8 @@ router.post('/', async (req, res, next) => {
       }
     }
 
-    const freshCheckedInRow = await db.prepare(`SELECT COUNT(*) AS c FROM registrations WHERE event_id=? AND status='CheckedIn'`).get(selectedId);
-    const freshCheckedIn = (freshCheckedInRow && freshCheckedInRow.c) || 0;
+    const updatedAvail = await getEventAvailability(selectedId);
+    const freshCheckedIn = updatedAvail ? updatedAvail.checked_in_count : 0;
 
     res.render('staff/checkin.html', { events, selectedEvent, selectedId, checkedIn: freshCheckedIn, confirmed, result });
   } catch (err) {

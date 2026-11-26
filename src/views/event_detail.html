@@ -9,11 +9,13 @@
       <span class="badge-pill badge-pill-purple">{{ event.category }}</span>
       <span class="badge-pill badge-pill-green">FREE EVENT</span>
       {% if event.has_ended %}
-        <span class="badge-pill badge-pill-amber">EVENT CONCLUDED</span>
+        <span class="badge-pill badge-pill-amber">ENDED</span>
+      {% elif event.status == 'Closed' %}
+        <span class="badge-pill badge-pill-amber">CLOSED</span>
       {% elif event.has_started %}
         <span class="badge-pill badge-pill-amber">EVENT IN PROGRESS</span>
       {% elif event.is_full %}
-        <span class="badge-pill badge-pill-amber">SOLD OUT ({{ event.capacity }}/{{ event.capacity }})</span>
+        <span class="badge-pill badge-pill-amber">FULL ({{ event.capacity }}/{{ event.capacity }})</span>
       {% else %}
         <span class="badge-pill badge-pill-green">{{ event.spots_left }} OF {{ event.capacity }} SPOTS LEFT</span>
       {% endif %}
@@ -59,10 +61,12 @@
             <div class="meta-content">
               <span class="meta-label">Availability</span>
               <span class="meta-value">
-                {% if event.is_full %}
-                  <strong class="text-danger">Sold Out — all {{ event.capacity }} spots taken</strong>
-                {% elif event.has_started %}
-                  <strong class="text-warning">Registration closed (event started)</strong>
+                {% if event.has_ended %}
+                  <strong class="text-muted">Event ended ({{ event.spots_left }} of {{ event.capacity }} spots left)</strong>
+                {% elif event.status == 'Closed' or event.has_started %}
+                  <strong class="text-warning">Registration closed ({% if event.is_full %}Full · {% endif %}{{ event.spots_left }} of {{ event.capacity }} spots)</strong>
+                {% elif event.is_full %}
+                  <strong class="text-warning">Full — {{ event.spots_left }} of {{ event.capacity }} spots left (Waitlist open)</strong>
                 {% else %}
                   <strong class="text-success">{{ event.spots_left }}</strong> of {{ event.capacity }} spots left
                 {% endif %}
@@ -74,9 +78,14 @@
         <!-- Action / CTA Area -->
         <div class="detail-action-box" style="margin-top: 1.5rem;">
           {% if event.has_ended %}
-            <div class="alert alert-secondary">This event has already concluded. Thank you!</div>
+            <div class="alert alert-secondary">This event has already ended. Registration is closed.</div>
             <button class="btn btn-secondary btn-block btn-lg" disabled style="opacity: 0.6; cursor: not-allowed; justify-content: center;">
-              Event Concluded
+              Event Ended
+            </button>
+          {% elif event.status == 'Closed' %}
+            <div class="alert alert-warning">This event has been closed by the organizer. Registrations are closed.</div>
+            <button class="btn btn-secondary btn-block btn-lg" disabled style="opacity: 0.6; cursor: not-allowed; justify-content: center;">
+              Registration Closed
             </button>
           {% elif event.has_started %}
             <div class="alert alert-warning">This event is currently in progress. Registrations are closed.</div>
@@ -84,10 +93,10 @@
               Registration Closed
             </button>
           {% elif event.is_full %}
-            <div class="alert alert-danger">This event is currently sold out. All seats have been claimed.</div>
-            <button class="btn btn-secondary btn-block btn-lg" disabled style="opacity: 0.6; cursor: not-allowed; justify-content: center;">
-              Sold Out — No Spots Left
-            </button>
+            <div class="alert alert-warning">This event is currently <strong>Full</strong> ({{ event.capacity }}/{{ event.capacity }}). You may join the waitlist below.</div>
+            <a href="/events/{{ event.id }}/register" class="btn btn-cta btn-lg btn-block" style="text-align: center; justify-content: center;">
+              Join Waitlist →
+            </a>
           {% else %}
             <a href="/events/{{ event.id }}/register" class="btn btn-cta btn-lg btn-block" style="text-align: center; justify-content: center;">
               Register Now & Get QR Ticket →
