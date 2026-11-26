@@ -1,21 +1,6 @@
 'use strict';
-// Test the full name validation regex used in attendee.js
-const FULL_NAME_UNICODE_RE = /^[\p{L}]+(?: +[\p{L}]+)*$/u;
-
-function validateFullName(raw) {
-  if (!raw || typeof raw !== 'string') return { valid: false, msg: 'Full name is required.' };
-  const trimmed = raw.trim();
-  if (!trimmed) return { valid: false, msg: 'Full name cannot be empty or contain only spaces.' };
-  if (trimmed.length < 2) return { valid: false, msg: 'Full name must be at least 2 characters.' };
-  if (trimmed.length > 100) return { valid: false, msg: 'Full name cannot exceed 100 characters.' };
-  if (/[\t\n\r\x00-\x1F\x7F]/.test(trimmed)) {
-    return { valid: false, msg: 'Full name must contain letters and spaces only. Numbers, special characters, and emojis are not allowed.' };
-  }
-  if (!FULL_NAME_UNICODE_RE.test(trimmed)) {
-    return { valid: false, msg: 'Full name must contain letters and spaces only. Numbers, special characters, and emojis are not allowed.' };
-  }
-  return { valid: true, value: trimmed };
-}
+// Tests the production validateFullName() implementation in src/utils/validation.js
+const { validateFullName } = require('../src/utils/validation');
 
 const tests = [
   // [input, expectedValid, description]
@@ -27,19 +12,37 @@ const tests = [
   ['André Matugas', true, 'Name with accent é'],
   ['Ñora Matugas', true, 'Name with Ñ'],
   ['Ü müller', true, 'Name with Ü'],
-  ['Carl123', false, 'Name with numbers'],
+  // T5: Filipino & international names with period, apostrophe, hyphen
+  ['Ma. Cristina', true, 'Filipino name with period (Ma. Cristina)'],
+  ['Ma. Cristina Santos', true, 'Filipino full name with period'],
+  ['Juan Dela Cruz Jr.', true, 'Name with suffix period (Jr.)'],
+  ["O'Brien", true, "Straight apostrophe (O'Brien)"],
+  ['O\u2019Brien', true, 'Curly right apostrophe (O’Brien)'],
+  ['Mary-Ann', true, 'Hyphenated name (Mary-Ann)'],
+  ["Mary-Ann O'Brien", true, "Hyphenated + apostrophe (Mary-Ann O'Brien)"],
+  ['Jean-François', true, 'Accented hyphenated name'],
+  // Invalid cases
+  ['John123', false, 'Name with numbers (John123)'],
   ['Carl@Jay', false, 'Name with @'],
   ['Carl! Jay', false, 'Name with !'],
   ['Carl_ Jay', false, 'Name with _'],
+  ['😀', false, 'Emoji only'],
   ['Carl 😊', false, 'Name with emoji'],
   ['123456', false, 'All numbers'],
   ['@#$%', false, 'All symbols'],
   ['   ', false, 'Whitespace only'],
   ['', false, 'Empty string'],
   ['A', false, 'Too short (1 char)'],
+  ['.Cristina', false, 'Starts with period (must start with letter)'],
+  ['-Cristina', false, 'Starts with hyphen'],
+  ["'Brien", false, 'Starts with apostrophe'],
   ['  Carl Jay  ', true, 'Leading/trailing spaces (trimmed)'],
-  ['<script>alert(1)</script>', false, 'XSS injection'],
+  ['<script>', false, 'Script tag only'],
+  ['<script>alert(1)</script>', false, 'XSS script tag'],
+  ['<script>alert(1)</script>John', false, 'HTML tag prefixed to valid name'],
   ['Carl\tJay', false, 'Tab character'],
+  ['Carl\nJay', false, 'Newline character'],
+  ['A'.repeat(101), false, 'Exceeds 100 chars'],
 ];
 
 let passed = 0;
@@ -57,24 +60,21 @@ tests.forEach(([input, expectedValid, desc]) => {
   }
 });
 
-console.log(`\n${passed} passed, ${failed} failed`);
-
-// Also verify capitalization preservation
+// Capitalization preservation checks
 const preservationTests = [
   ['carl jay matugas', 'carl jay matugas'],
   ['Carl Jay Matugas', 'Carl Jay Matugas'],
   ['CARL JAY MATUGAS', 'CARL JAY MATUGAS'],
-  ['  José Matugas  ', 'José Matugas'],  // trimmed but capitalization preserved
+  ['  José Matugas  ', 'José Matugas'],
+  ['Ma. Cristina Santos', 'Ma. Cristina Santos'],
+  ["Mary-Ann O'Brien", "Mary-Ann O'Brien"],
 ];
 
 console.log('\nCapitalization preservation tests:');
 preservationTests.forEach(([input, expected]) => {
   const result = validateFullName(input);
-  if (!result.valid) {
-    console.error(`  ✗ FAIL: "${input}" - should be valid`);
-    failed++;
-  } else if (result.value !== expected) {
-    console.error(`  ✗ FAIL: "${input}" → expected "${expected}", got "${result.value}"`);
+  if (!result.valid || result.value !== expected) {
+    console.error(`  ✗ FAIL: "${input}" → expected "${expected}", got "${result.value}" (valid=${result.valid})`);
     failed++;
   } else {
     console.log(`  ✓ PASS: "${input}" → "${result.value}"`);

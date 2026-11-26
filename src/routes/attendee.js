@@ -6,45 +6,9 @@ const { generateTicketCode } = require('../utils/ticket');
 const { sendConfirmationEmail } = require('../utils/mailer');
 const { normalizePHMobile, isValidPHMobile } = require('../utils/phone');
 const { getEventAvailability, getConfirmedCount, getEventsWithAvailability } = require('../utils/availability');
+const { validateFullName, sanitizeInput } = require('../utils/validation');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// Unicode-aware name validation: only Unicode letters and spaces between name parts
-// Rejects numbers, symbols, emojis, and punctuation
-const FULL_NAME_UNICODE_RE = /^[\p{L}]+(?:\s+[\p{L}]+)*$/u;
-
-function sanitizeInput(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // strip script tags and content
-    .replace(/<[^>]+>/g, '') // strip remaining HTML tags
-    .trim();
-}
-
-/**
- * Validates a full name:
- * - Only Unicode letters (\p{L}) and spaces allowed
- * - No numbers, symbols, emojis, or punctuation
- * - Rejects whitespace-only input
- * - Preserves original capitalization
- */
-function validateFullName(raw) {
-  if (!raw || typeof raw !== 'string') return { valid: false, msg: 'Full name is required.' };
-  // Strip leading/trailing whitespace only for validation; preserve interior spaces
-  const trimmed = raw.trim();
-  if (!trimmed) return { valid: false, msg: 'Full name cannot be empty or contain only spaces.' };
-  if (trimmed.length < 2) return { valid: false, msg: 'Full name must be at least 2 characters.' };
-  if (trimmed.length > 100) return { valid: false, msg: 'Full name cannot exceed 100 characters.' };
-  // Check for tab/newline/control characters
-  if (/[\t\n\r\x00-\x1F\x7F]/.test(trimmed)) {
-    return { valid: false, msg: 'Full name must contain letters and spaces only. Numbers, special characters, and emojis are not allowed.' };
-  }
-  // Unicode-aware: only letters and single spaces between name parts
-  if (!FULL_NAME_UNICODE_RE.test(trimmed)) {
-    return { valid: false, msg: 'Full name must contain letters and spaces only. Numbers, special characters, and emojis are not allowed.' };
-  }
-  return { valid: true, value: trimmed };
-}
 
 // Home — event list (attendee): show only Published events that have not ended
 router.get('/', async (req, res, next) => {
@@ -139,10 +103,10 @@ router.post('/events/:id/register', async (req, res, next) => {
     const { full_name, email, mobile } = req.body;
     const errors = {};
 
-    // TC-01 & TC-05: Required fields, input sanitization, XSS prevention & full name validation
-    const rawNameInput = sanitizeInput(full_name || '');
+    // Validate full name before sanitization so HTML/script tags are explicitly rejected
+    const rawNameInput = typeof full_name === 'string' ? full_name : '';
     const nameValidation = validateFullName(rawNameInput);
-    const rawName = nameValidation.valid ? nameValidation.value : rawNameInput;
+    const rawName = nameValidation.valid ? nameValidation.value : sanitizeInput(rawNameInput);
     if (!nameValidation.valid) {
       errors.full_name = nameValidation.msg;
     }
