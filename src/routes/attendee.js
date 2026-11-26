@@ -46,11 +46,12 @@ function validateFullName(raw) {
   return { valid: true, value: trimmed };
 }
 
-// Home — event list (attendee)
+// Home — event list (attendee): show only Published events that have not ended
 router.get('/', async (req, res, next) => {
   try {
     const now = nowCebu();
-    const events = await getEventsWithAvailability({ statuses: ['Published'], order: 'ASC' });
+    const allPublished = await getEventsWithAvailability({ statuses: ['Published'], order: 'ASC' });
+    const events = allPublished.filter(ev => !ev.has_ended);
     res.render('index.html', { events, now });
   } catch (err) {
     next(err);
@@ -61,7 +62,7 @@ router.get('/', async (req, res, next) => {
 router.get('/events/:id', async (req, res, next) => {
   try {
     const event = await getEventAvailability(req.params.id);
-    if (!event || event.status !== 'Published') return res.status(404).render('404.html');
+    if (!event || event.status === 'Draft') return res.status(404).render('404.html');
 
     const now = nowCebu();
     res.render('event_detail.html', { event, now });
@@ -70,13 +71,36 @@ router.get('/events/:id', async (req, res, next) => {
   }
 });
 
+function getClosedRegistrationState(event) {
+  if (event.status === 'Closed') {
+    return { status: 400, msg: 'Registration is closed for this event.' };
+  }
+  if (event.has_ended) {
+    return { status: 410, msg: 'Registration is closed because this event has already ended.' };
+  }
+  if (event.has_started) {
+    return { status: 400, msg: 'Registration is closed because this event has already started.' };
+  }
+  return null;
+}
+
 // GET registration form
 router.get('/events/:id/register', async (req, res, next) => {
   try {
     const event = await getEventAvailability(req.params.id);
-    if (!event || event.status !== 'Published') return res.status(404).render('404.html');
+    if (!event || event.status === 'Draft') return res.status(404).render('404.html');
 
     const now = nowCebu();
+    const closed = getClosedRegistrationState(event);
+    if (closed) {
+      return res.status(closed.status).render('register.html', {
+        event,
+        errors: { form: closed.msg },
+        values: {},
+        now
+      });
+    }
+
     res.render('register.html', { event, errors: {}, values: {}, now });
   } catch (err) {
     next(err);
@@ -88,25 +112,22 @@ router.post('/events/:id/register', async (req, res, next) => {
   try {
     const now = nowCebu();
     const event = await getEventAvailability(req.params.id);
+    const isJson = req.xhr || req.headers.accept?.includes('json');
 
-    if (!event || event.status !== 'Published') {
-      if (req.xhr || req.headers.accept?.includes('json')) {
+    if (!event || event.status === 'Draft') {
+      if (isJson) {
         return res.status(404).json({ error: 'Event not found or not published.' });
       }
       return res.status(404).render('404.html');
     }
 
-    const isJson = req.xhr || req.headers.accept?.includes('json');
-
-    // TC-07 & Phase 2: Close registration automatically for started or concluded events
-    if (event.has_started) {
-      const closeMsg = event.has_ended
-        ? 'Registration is closed because this event has already concluded.'
-        : 'Registration is closed because this event has already started.';
-      if (isJson) return res.status(400).json({ error: closeMsg });
-      return res.status(400).render('register.html', {
+    // Server-side enforcement: reject Closed, Ended, and Started events
+    const closed = getClosedRegistrationState(event);
+    if (closed) {
+      if (isJson) return res.status(closed.status).json({ error: closed.msg });
+      return res.status(closed.status).render('register.html', {
         event,
-        errors: { form: closeMsg },
+        errors: { form: closed.msg },
         values: req.body,
         now
       });

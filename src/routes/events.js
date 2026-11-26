@@ -109,8 +109,11 @@ async function validateAndSave(req, res, existingEvent) {
     return res.render('staff/event_form.html', { event: existingEvent, errors, values: req.body });
   }
 
-  // Format datetimes as 'YYYY-MM-DD HH:MM:SS'
-  const fmtDt = (s) => s.replace('T', ' ') + ':00';
+  // Format datetimes cleanly as 'YYYY-MM-DD HH:MM:SS' in Asia/Manila
+  const fmtDt = (s) => {
+    const clean = String(s || '').trim().replace('T', ' ');
+    return clean.length === 16 ? clean + ':00' : clean.slice(0, 19);
+  };
 
   if (existingEvent) {
     await db.prepare(`UPDATE events SET title=?,description=?,venue=?,starts_at=?,ends_at=?,capacity=?,status=? WHERE id=?`)

@@ -189,8 +189,7 @@ router.get('/', async (req, res, next) => {
     const events = await getEventsWithAvailability({ statuses: ['Published', 'Closed'], order: 'DESC' });
 
     const stats = events.map(ev => {
-      const hasStarted = now >= ev.starts_at;
-      const noShows = hasStarted ? Math.max(0, ev.confirmed_count - ev.checked_in_count) : '—';
+      const noShows = ev.has_started ? Math.max(0, ev.confirmed_count - ev.checked_in_count) : '—';
 
       return {
         ...ev,
