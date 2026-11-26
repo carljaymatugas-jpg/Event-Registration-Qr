@@ -10,11 +10,15 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
-// ── Session store (SQLite) ───────────────────────────────────────────────────
+// Fail closed in production if SESSION_SECRET or TICKET_HMAC_SECRET is missing/placeholder
+const { assertProductionSecrets } = require('./utils/ticket');
+assertProductionSecrets();
+
+// ── Session store (SQLite / Postgres) ─────────────────────────────────────────
 const sessionStore = require('./utils/sessionStore');
 app.use(session({
   store: sessionStore,
-  secret: process.env.SESSION_SECRET || 'fallback_secret',
+  secret: (process.env.SESSION_SECRET || '').trim() || 'dev_session_secret_only',
   resave: false,
   saveUninitialized: false,
   cookie: { httpOnly: true, maxAge: 8 * 60 * 60 * 1000 } // 8 h
