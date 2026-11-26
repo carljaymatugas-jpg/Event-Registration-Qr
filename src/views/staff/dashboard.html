@@ -326,19 +326,19 @@
     var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     return {
       isDark: isDark,
-      textColor: isDark ? '#94A3B8' : '#64748B',
-      headingColor: isDark ? '#F8FAFC' : '#1E293B',
-      gridColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
-      tooltipBg: isDark ? '#1E293B' : '#FFFFFF',
-      tooltipText: isDark ? '#F8FAFC' : '#1E293B',
-      tooltipBorder: isDark ? '#334155' : '#E2E8F0',
-      primary: isDark ? '#6366F1' : '#4F46E5',
-      primaryLight: isDark ? 'rgba(99, 102, 241, 0.25)' : 'rgba(79, 70, 229, 0.15)',
-      accent: isDark ? '#10B981' : '#10B981',
-      accentLight: isDark ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.15)',
-      warning: isDark ? '#F59E0B' : '#F59E0B',
-      danger: isDark ? '#EF4444' : '#EF4444',
-      trackColor: isDark ? '#1E293B' : '#E2E8F0'
+      textColor: isDark ? '#a3a0c4' : '#6a6785',
+      headingColor: isDark ? '#f1f0ff' : '#17152b',
+      gridColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(40,30,120,0.06)',
+      tooltipBg: isDark ? '#1a1930' : '#ffffff',
+      tooltipText: isDark ? '#f1f0ff' : '#17152b',
+      tooltipBorder: isDark ? '#2c2a4a' : '#e6e4f2',
+      primary: isDark ? '#8b80ff' : '#5b4bf5',
+      primaryLight: isDark ? 'rgba(139, 128, 255, 0.25)' : 'rgba(91, 75, 245, 0.14)',
+      accent: isDark ? '#6fe0b6' : '#12805c',
+      accentLight: isDark ? 'rgba(111, 224, 182, 0.22)' : 'rgba(18, 128, 92, 0.14)',
+      warning: isDark ? '#ffc266' : '#a85a00',
+      danger: isDark ? '#ff9a92' : '#b3261e',
+      trackColor: isDark ? '#272552' : '#ecebff'
     };
   }
 
@@ -416,7 +416,7 @@
             data: checkinPace,
             backgroundColor: function(ctx) {
               var val = ctx.raw || 0;
-              return val >= 10 ? t.primary : (val >= 5 ? 'rgba(99, 102, 241, 0.65)' : 'rgba(148, 163, 184, 0.5)');
+              return val >= 10 ? t.primary : (val >= 5 ? t.primaryLight : 'rgba(106, 103, 133, 0.35)');
             },
             borderRadius: 6,
             borderSkipped: false
@@ -466,7 +466,7 @@
             ],
             backgroundColor: [t.accent, t.primary, t.warning, t.danger],
             borderWidth: 3,
-            borderColor: t.isDark ? '#111827' : '#FFFFFF',
+            borderColor: t.isDark ? '#1a1930' : '#ffffff',
             hoverOffset: 6
           }]
         },

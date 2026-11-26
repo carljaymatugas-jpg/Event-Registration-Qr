@@ -13,12 +13,15 @@
 
   <form method="POST" action="/staff/login">
     <div class="field">
-      <label for="username">Username <span style="color:var(--color-danger)">*</span></label>
-      <input type="text" id="username" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required autofocus placeholder="Enter your staff username">
+      <label for="username">Username <span style="color:var(--bad)">*</span></label>
+      <input type="text" id="username" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" required autofocus placeholder="Enter your staff username">
     </div>
     <div class="field">
-      <label for="password">Password <span style="color:var(--color-danger)">*</span></label>
-      <input type="password" id="password" name="password" autocomplete="current-password" required placeholder="••••••••">
+      <label for="password">Password <span style="color:var(--bad)">*</span></label>
+      <div class="pw-field-wrap">
+        <input type="password" id="password" name="password" autocomplete="current-password" enterkeyhint="done" required placeholder="••••••••">
+        <button type="button" class="pw-toggle-btn" id="togglePwBtn" aria-pressed="false" aria-label="Show password">Show</button>
+      </div>
     </div>
     <button type="submit" class="btn btn-cta btn-block btn-lg" style="margin-top: 0.75rem; justify-content: center;">
       Sign In to Portal →
@@ -29,4 +32,19 @@
     <a href="/">← Return to Public Events</a>
   </p>
 </div>
+<script>
+  (function() {
+    var btn = document.getElementById('togglePwBtn');
+    var pw = document.getElementById('password');
+    if (btn && pw) {
+      btn.addEventListener('click', function() {
+        var showing = pw.type === 'text';
+        pw.type = showing ? 'password' : 'text';
+        btn.setAttribute('aria-pressed', showing ? 'false' : 'true');
+        btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+        btn.textContent = showing ? 'Show' : 'Hide';
+      });
+    }
+  })();
+</script>
 {% endblock %}

@@ -1,25 +1,32 @@
 {% extends "base.html" %}
 {% block title %}{{ event.title }} — EventReg{% endblock %}
 {% block content %}
+{% set filledPct = 100 if event.capacity <= 0 else ((event.capacity - event.spots_left) * 100 / event.capacity) | round %}
 <div class="event-detail-wrapper">
   <!-- Top Navigation & Badges -->
   <div class="detail-header-nav">
     <a href="/" class="back-link">← All Events</a>
-    <div class="event-badge-row">
+    <div class="event-badge-row" style="margin-bottom: 0;">
       <span class="badge-pill badge-pill-purple">{{ event.category }}</span>
       <span class="badge-pill badge-pill-green">FREE EVENT</span>
       {% if event.has_ended %}
         <span class="badge-pill badge-pill-amber">ENDED</span>
       {% elif event.status == 'Closed' %}
-        <span class="badge-pill badge-pill-amber">CLOSED</span>
+        <span class="badge-pill badge-pill-red">CLOSED</span>
       {% elif event.has_started %}
         <span class="badge-pill badge-pill-amber">EVENT IN PROGRESS</span>
       {% elif event.is_full %}
-        <span class="badge-pill badge-pill-amber">FULL ({{ event.capacity }}/{{ event.capacity }})</span>
+        <span class="badge-pill badge-pill-red">FULL ({{ event.capacity }}/{{ event.capacity }})</span>
+      {% elif event.spots_left <= 5 %}
+        <span class="badge-pill badge-pill-amber">{{ event.spots_left }} OF {{ event.capacity }} SPOTS LEFT</span>
       {% else %}
         <span class="badge-pill badge-pill-green">{{ event.spots_left }} OF {{ event.capacity }} SPOTS LEFT</span>
       {% endif %}
     </div>
+  </div>
+
+  <div class="steps" aria-label="Registration Progress">
+    <span class="on"></span><span></span>
   </div>
 
   <h1 class="detail-main-title">{{ event.title }}</h1>
@@ -29,7 +36,7 @@
     <!-- Left Column: Details, Spots, CTA, and Ticket Lookup -->
     <div class="detail-col-primary">
       <div class="detail-card">
-        <h3 class="card-section-title">Event Schedule & Venue</h3>
+        <h3 class="card-section-title">Event Schedule &amp; Venue</h3>
         
         <div class="detail-meta-list">
           <div class="detail-meta-row">
@@ -58,7 +65,7 @@
 
           <div class="detail-meta-row">
             <span class="meta-icon" aria-hidden="true">🎟</span>
-            <div class="meta-content">
+            <div class="meta-content" style="width: 100%;">
               <span class="meta-label">Availability</span>
               <span class="meta-value">
                 {% if event.has_ended %}
@@ -71,6 +78,9 @@
                   <strong class="text-success">{{ event.spots_left }}</strong> of {{ event.capacity }} spots left
                 {% endif %}
               </span>
+              <div class="capacity-bar {% if event.is_full %}is-full{% endif %}" style="margin-top: 8px;" aria-hidden="true">
+                <b style="width: {{ filledPct }}%;"></b>
+              </div>
             </div>
           </div>
         </div>

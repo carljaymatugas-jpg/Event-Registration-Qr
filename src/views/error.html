@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Error — EventReg{% endblock %}
 {% block content %}
-<div style="text-align:center; padding:4rem 1rem;">
+<div class="form-container form-narrow text-center" style="margin: 2.5rem auto;">
+  <div style="font-size: 2.5rem; margin-bottom: 0.5rem;" aria-hidden="true">⚠️</div>
   <h1>Something went wrong</h1>
-  <p class="text-muted">{{ message }}</p>
-  <a href="/" class="btn btn-primary">Back to Events</a>
+  <p class="text-muted" style="margin-bottom: 1.5rem;">{{ message }}</p>
+  <a href="/" class="btn btn-cta">Back to Events →</a>
 </div>
 {% endblock %}

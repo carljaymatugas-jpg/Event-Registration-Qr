@@ -69,23 +69,31 @@
               {% endif %}
               {% if r.status in ['Confirmed', 'Waitlisted'] %}
                 <form method="POST" action="/staff/attendees/{{ event.id }}/cancel/{{ r.id }}" style="display:inline"
-                      onsubmit="return confirm('Cancel this registration?')">
+                      data-confirm="Cancel registration for {{ r.full_name }}?"
+                      data-confirm-title="Cancel Registration?"
+                      data-confirm-ok="Cancel Registration">
                   <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
                 </form>
               {% endif %}
               {% if r.status == 'Cancelled' %}
                 <form method="POST" action="/staff/attendees/{{ event.id }}/uncancel/{{ r.id }}" style="display:inline"
-                      onsubmit="return confirm('Restore this registration to Confirmed?')">
+                      data-confirm="Restore {{ r.full_name }} back to Confirmed?"
+                      data-confirm-title="Restore Registration?"
+                      data-confirm-ok="Restore">
                   <button type="submit" class="btn btn-sm btn-secondary">Restore</button>
                 </form>
                 <form method="POST" action="/staff/attendees/{{ event.id }}/delete/{{ r.id }}" style="display:inline"
-                      onsubmit="return confirm('Are you sure you want to permanently delete this attendee record?')">
+                      data-confirm="Permanently delete {{ r.full_name }}'s attendee record?"
+                      data-confirm-title="Delete Attendee Record?"
+                      data-confirm-ok="Delete Permanently">
                   <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                 </form>
               {% endif %}
               {% if r.status == 'CheckedIn' %}
                 <form method="POST" action="/staff/checkin/undo" style="display:inline"
-                      onsubmit="return confirm('Undo this check-in?')">
+                      data-confirm="Undo door check-in for {{ r.full_name }}?"
+                      data-confirm-title="Undo Check-in?"
+                      data-confirm-ok="Undo Check-in">
                   <input type="hidden" name="registration_id" value="{{ r.id }}">
                   <input type="hidden" name="event_id" value="{{ event.id }}">
                   <button type="submit" class="btn btn-sm btn-secondary">Undo</button>

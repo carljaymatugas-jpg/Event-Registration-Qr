@@ -1,51 +1,55 @@
 {% extends "base.html" %}
 {% block title %}Upcoming Events — EventReg{% endblock %}
 {% block content %}
-<!-- Page Header -->
-<div class="events-hero-header">
-  <div class="events-hero-text">
-    <h1 class="events-main-title">Upcoming Events</h1>
-    <p class="text-muted events-main-subtitle">Discover and register for technology, design, workshop, and community events near you.</p>
-  </div>
-</div>
-
-<!-- Event Controls & Search Toolbar -->
-<div class="events-toolbar-card">
-  <div class="events-toolbar-top">
-    <!-- Search Bar -->
-    <div class="search-input-wrapper">
-      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+<!-- Reference Hero Banner with Integrated Search -->
+<section class="hero-banner">
+  <h1>Find your next event.<br>Register in 30 seconds.</h1>
+  <p>Free tech, design, workshop, and community events in Cebu. Get an instant QR ticket and skip the line at check-in.</p>
+  <search>
+    <div class="hero-search-box">
+      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="11" cy="11" r="8"></circle>
         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
       </svg>
-      <input type="text" id="eventSearchInput" class="event-search-field" placeholder="Search events by name, category, venue, or keywords..." aria-label="Search events">
+      <input type="search" id="eventSearchInput" class="event-search-field" placeholder="Search events, categories, or venues…" aria-label="Search events" autocorrect="off" autocapitalize="none" spellcheck="false">
       <button type="button" id="clearSearchBtn" class="search-clear-btn" style="display:none;" aria-label="Clear search">✕</button>
     </div>
+  </search>
+</section>
 
-    <!-- Right Controls: Sort, Page Size, View Mode Toggle -->
+<!-- Filter Chips & View Controls -->
+<div class="events-toolbar-card">
+  <div class="events-toolbar-filters">
+    <div class="filter-pills-list" id="categoryFilters">
+      <button type="button" class="filter-pill active" data-filter="all">All</button>
+      <button type="button" class="filter-pill" data-filter="TECH & DEVELOPER">Tech &amp; Developer</button>
+      <button type="button" class="filter-pill" data-filter="DESIGN & CREATIVE">Design &amp; Creative</button>
+      <button type="button" class="filter-pill" data-filter="HANDS-ON WORKSHOP">Workshop</button>
+      <button type="button" class="filter-pill" data-filter="COMMUNITY MEETUP">Community</button>
+      <button type="button" class="filter-pill" data-filter="AVAILABLE">Spots available</button>
+    </div>
+    <button type="button" id="resetFiltersBtn" class="filter-reset-link" style="display: none;">Clear filters</button>
+
     <div class="toolbar-right-controls">
-      <!-- Sort Dropdown -->
       <div class="control-select-group">
         <label for="sortSelect" class="control-label">Sort:</label>
         <select id="sortSelect" class="form-select-sm" aria-label="Sort events by">
-          <option value="date-asc">Event Date (Soonest)</option>
-          <option value="spots-asc">Spots Left (Lowest First)</option>
-          <option value="spots-desc">Spots Left (Highest First)</option>
-          <option value="title-asc">Event Title (A–Z)</option>
+          <option value="date-asc">Soonest</option>
+          <option value="spots-asc">Spots (Low–High)</option>
+          <option value="spots-desc">Spots (High–Low)</option>
+          <option value="title-asc">Title (A–Z)</option>
         </select>
       </div>
 
-      <!-- Page Size Selector -->
       <div class="control-select-group">
         <label for="pageSizeSelect" class="control-label">Show:</label>
         <select id="pageSizeSelect" class="form-select-sm" aria-label="Events per page">
-          <option value="5">5 per page</option>
-          <option value="10" selected>10 per page</option>
-          <option value="25">25 per page</option>
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="25">25</option>
         </select>
       </div>
 
-      <!-- View Toggle Buttons -->
       <div class="view-toggle-group" role="group" aria-label="View layout toggle">
         <button type="button" id="viewCardBtn" class="view-btn active" title="Card View" aria-label="Switch to Card View">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
@@ -56,31 +60,32 @@
       </div>
     </div>
   </div>
-
-  <!-- Filter Pills Row -->
-  <div class="events-toolbar-filters">
-    <span class="filter-group-label">Filter:</span>
-    <div class="filter-pills-list" id="categoryFilters">
-      <button type="button" class="filter-pill active" data-filter="all">All Events</button>
-      <button type="button" class="filter-pill" data-filter="TECH & DEVELOPER">Tech & Developer</button>
-      <button type="button" class="filter-pill" data-filter="DESIGN & CREATIVE">Design & Creative</button>
-      <button type="button" class="filter-pill" data-filter="HANDS-ON WORKSHOP">Hands-on Workshop</button>
-      <button type="button" class="filter-pill" data-filter="COMMUNITY MEETUP">Community Meetup</button>
-      <button type="button" class="filter-pill" data-filter="FREE">Free Events</button>
-      <button type="button" class="filter-pill" data-filter="AVAILABLE">Spots Available</button>
-    </div>
-    <button type="button" id="resetFiltersBtn" class="filter-reset-link" style="display: none;">Clear all filters</button>
-  </div>
 </div>
 
 <!-- Active Filter / Results Count Meta -->
 <div class="events-meta-bar">
-  <span id="resultsCountLabel" class="text-muted" style="font-size: var(--text-sm);">Showing all events</span>
+  <span id="resultsCountLabel" class="text-muted" style="font-size: var(--text-sm); font-weight: 600;">Showing all events</span>
 </div>
 
 <!-- Card View Container (Default) -->
 <div id="eventsCardGrid" class="event-grid">
   {% for ev in events %}
+  {% set dateStr = ev.starts_at | cebuDate %}
+  {% set dateParts = dateStr.replace(',', '').split(' ') %}
+  {% set monShort = (dateParts[0] or 'EVT').slice(0, 3) | upper %}
+  {% set dayNum = dateParts[1] or '01' %}
+  {% set filledPct = 100 if ev.capacity <= 0 else ((ev.capacity - ev.spots_left) * 100 / ev.capacity) | round %}
+  {% if ev.has_ended or ev.status == 'Closed' %}
+    {% set coverClass = 'cat-closed' %}
+  {% elif 'DESIGN' in ev.category %}
+    {% set coverClass = 'cat-design' %}
+  {% elif 'WORKSHOP' in ev.category %}
+    {% set coverClass = 'cat-workshop' %}
+  {% elif 'COMMUNITY' in ev.category %}
+    {% set coverClass = 'cat-community' %}
+  {% else %}
+    {% set coverClass = 'cat-tech' %}
+  {% endif %}
   <article class="event-card {% if ev.is_full %}full{% endif %} {% if ev.has_started %}started{% endif %} {% if ev.is_past %}past{% endif %}"
            data-id="{{ ev.id }}"
            data-title="{{ ev.title | lower }}"
@@ -91,55 +96,66 @@
            data-capacity="{{ ev.capacity }}"
            data-is-full="{{ ev.is_full }}"
            data-has-started="{{ ev.has_started }}">
-    <div class="event-badge-row">
-      <span class="badge-pill badge-pill-purple">{{ ev.category }}</span>
-      <span class="badge-pill badge-pill-green">FREE EVENT</span>
+    <div class="card-cover {{ coverClass }}">
+      <div class="cover-date" aria-label="{{ dateStr }}">
+        <small>{{ monShort }}</small>{{ dayNum }}
+      </div>
       {% if ev.has_ended %}
         <span class="badge-pill badge-pill-amber">ENDED</span>
       {% elif ev.status == 'Closed' %}
-        <span class="badge-pill badge-pill-amber">CLOSED</span>
+        <span class="badge-pill badge-pill-red">CLOSED</span>
       {% elif ev.has_started %}
         <span class="badge-pill badge-pill-amber">IN PROGRESS</span>
       {% elif ev.is_full %}
-        <span class="badge-pill badge-pill-amber">FULL ({{ ev.capacity }}/{{ ev.capacity }})</span>
+        <span class="badge-pill badge-pill-red">FULL ({{ ev.capacity }}/{{ ev.capacity }})</span>
+      {% elif ev.spots_left <= 5 %}
+        <span class="badge-pill badge-pill-amber">{{ ev.spots_left }} OF {{ ev.capacity }} SPOTS LEFT</span>
       {% else %}
         <span class="badge-pill badge-pill-green">{{ ev.spots_left }} OF {{ ev.capacity }} SPOTS LEFT</span>
       {% endif %}
     </div>
 
-    <h2 class="event-card-title"><a href="/events/{{ ev.id }}">{{ ev.title }}</a></h2>
-
-    <div class="event-meta-list">
-      <div class="event-meta-item">
-        <span class="meta-icon" aria-hidden="true">📅</span>
-        <span class="meta-text">{{ ev.starts_at | cebuDate }}</span>
+    <div class="card-body">
+      <div class="card-category-line">
+        <span>{{ ev.category }}</span>
+        <span aria-hidden="true">·</span>
+        <span>FREE EVENT</span>
       </div>
-      <div class="event-meta-item">
-        <span class="meta-icon" aria-hidden="true">🕐</span>
-        <span class="meta-text">{{ ev.starts_at | cebuTime }} – {{ ev.ends_at | cebuTime }}</span>
-      </div>
-      <div class="event-meta-item">
-        <span class="meta-icon" aria-hidden="true">📍</span>
-        <span class="meta-text">{{ ev.venue }}</span>
-      </div>
-    </div>
 
-    <div class="event-card-footer">
-      <p class="spots-info">
-        {% if ev.has_ended %}
-          <strong class="text-muted">Event Ended</strong>
-        {% elif ev.status == 'Closed' or ev.has_started %}
-          <strong class="text-warning">Registration Closed{% if ev.is_full %} · Full{% endif %}</strong>
-        {% elif ev.is_full %}
-          <strong class="text-warning">Full ({{ ev.spots_left }} of {{ ev.capacity }} spots left) · Waitlist</strong>
-        {% else %}
-          <span class="text-success" style="font-weight: 700;">{{ ev.spots_left }}</span> of {{ ev.capacity }} spots left
-        {% endif %}
-      </p>
+      <h2 class="event-card-title"><a href="/events/{{ ev.id }}" class="card-link">{{ ev.title }}</a></h2>
 
-      <a href="/events/{{ ev.id }}" class="btn {% if ev.has_started or ev.has_ended or ev.status == 'Closed' %}btn-secondary{% else %}btn-cta{% endif %} event-action-btn">
-        {% if ev.has_ended %}View Event Details →{% elif ev.status == 'Closed' or ev.has_started %}Registration Closed →{% elif ev.is_full %}Join Waitlist →{% else %}Register Now →{% endif %}
-      </a>
+      <div class="event-meta-list">
+        <div class="event-meta-item">
+          <span class="meta-icon" aria-hidden="true">🕐</span>
+          <span class="meta-text">{{ ev.starts_at | cebuTime }} – {{ ev.ends_at | cebuTime }}</span>
+        </div>
+        <div class="event-meta-item">
+          <span class="meta-icon" aria-hidden="true">📍</span>
+          <span class="meta-text">{{ ev.venue }}</span>
+        </div>
+      </div>
+
+      <div class="capacity-bar {% if ev.is_full %}is-full{% endif %}" aria-hidden="true">
+        <b style="width: {{ filledPct }}%;"></b>
+      </div>
+
+      <div class="event-card-footer">
+        <p class="spots-info">
+          {% if ev.has_ended %}
+            <strong class="text-muted">Event Ended</strong>
+          {% elif ev.status == 'Closed' or ev.has_started %}
+            <strong class="text-warning">Registration Closed{% if ev.is_full %} · Full{% endif %}</strong>
+          {% elif ev.is_full %}
+            <strong class="text-warning">Full ({{ ev.spots_left }} of {{ ev.capacity }} spots left) · Waitlist</strong>
+          {% else %}
+            <strong class="text-success">{{ ev.spots_left }}</strong> of {{ ev.capacity }} spots left
+          {% endif %}
+        </p>
+
+        <a href="/events/{{ ev.id }}" class="btn {% if ev.has_started or ev.has_ended or ev.status == 'Closed' %}btn-secondary{% else %}btn-cta{% endif %} event-action-btn">
+          {% if ev.has_ended %}View Event Details →{% elif ev.status == 'Closed' or ev.has_started %}Registration Closed →{% elif ev.is_full %}Join Waitlist →{% else %}Register Now →{% endif %}
+        </a>
+      </div>
     </div>
   </article>
   {% endfor %}

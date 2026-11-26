@@ -2,17 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
   <title>{% block title %}EventReg Staff | Management & Check-in{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <script>
     (function() {
-      var saved = localStorage.getItem('eventreg-theme') || 'light';
-      document.documentElement.setAttribute('data-theme', saved);
+      try {
+        var saved = localStorage.getItem('eventreg-theme');
+        var theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
     })();
   </script>
   {% block head %}{% endblock %}
@@ -122,12 +126,25 @@
         {% block content %}{% endblock %}
       </main>
       <footer class="site-footer">
-        <p>EventReg Staff Operations · Asia/Manila (UTC+8) <span id="staffClock" style="font-weight: 700; color: #8B5CF6; margin-left: 0.25rem;"></span> · Enterprise QR Flow</p>
+        <p>EventReg Staff Operations · Asia/Manila (UTC+8) <span id="staffClock" style="font-weight: 700; color: var(--brand); margin-left: 0.25rem;"></span> · Enterprise QR Flow</p>
       </footer>
     </div>
   {% if staffUser %}
   </div>
   {% endif %}
+
+  <!-- Staff Confirmation Modal / Bottom-Sheet -->
+  <dialog id="staffConfirmDialog" class="confirm-dialog" aria-labelledby="staffConfirmTitle" aria-describedby="staffConfirmDesc">
+    <div class="confirm-dialog-header">
+      <h2 class="confirm-dialog-title" id="staffConfirmTitle">Confirm Action</h2>
+      <button type="button" class="confirm-dialog-close" id="staffConfirmClose" aria-label="Close">✕</button>
+    </div>
+    <p class="confirm-dialog-body" id="staffConfirmDesc"></p>
+    <div class="confirm-dialog-actions">
+      <button type="button" class="btn btn-secondary btn-sm" id="staffConfirmCancel">Cancel</button>
+      <button type="button" class="btn btn-danger btn-sm" id="staffConfirmOk">Confirm</button>
+    </div>
+  </dialog>
 
   <!-- Theme & Sidebar JavaScript -->
   <script>
@@ -138,19 +155,21 @@
       var themeText = document.getElementById('themeText');
       var currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
 
-      function updateThemeUI(theme) {
+      function updateThemeUI(theme, persist) {
         document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('eventreg-theme', theme);
+        if (persist) {
+          try { localStorage.setItem('eventreg-theme', theme); } catch (e) {}
+        }
         if (checkbox) checkbox.checked = (theme === 'dark');
         if (themeIcon) themeIcon.textContent = (theme === 'dark') ? '☀️' : '🌙';
         if (themeText) themeText.textContent = (theme === 'dark') ? 'Light Mode' : 'Dark Mode';
       }
 
-      updateThemeUI(currentTheme);
+      updateThemeUI(currentTheme, false);
 
       if (checkbox) {
         checkbox.addEventListener('change', function() {
-          updateThemeUI(this.checked ? 'dark' : 'light');
+          updateThemeUI(this.checked ? 'dark' : 'light', true);
         });
       }
 
@@ -159,7 +178,46 @@
       if (checkboxLoggedOut) {
         checkboxLoggedOut.checked = (currentTheme === 'dark');
         checkboxLoggedOut.addEventListener('change', function() {
-          updateThemeUI(this.checked ? 'dark' : 'light');
+          updateThemeUI(this.checked ? 'dark' : 'light', true);
+        });
+      }
+
+      // Clean modal confirmation for destructive staff actions
+      var dialog = document.getElementById('staffConfirmDialog');
+      var titleEl = document.getElementById('staffConfirmTitle');
+      var descEl = document.getElementById('staffConfirmDesc');
+      var okBtn = document.getElementById('staffConfirmOk');
+      var cancelBtn = document.getElementById('staffConfirmCancel');
+      var closeBtn = document.getElementById('staffConfirmClose');
+      var pendingForm = null;
+
+      if (dialog && typeof dialog.showModal === 'function') {
+        document.addEventListener('submit', function(e) {
+          var form = e.target;
+          var msg = form && form.getAttribute('data-confirm');
+          if (!msg || form.getAttribute('data-confirmed') === 'true') return;
+          e.preventDefault();
+          pendingForm = form;
+          if (titleEl) titleEl.textContent = form.getAttribute('data-confirm-title') || 'Confirm Action';
+          if (descEl) descEl.textContent = msg;
+          if (okBtn) okBtn.textContent = form.getAttribute('data-confirm-ok') || 'Confirm';
+          dialog.showModal();
+        });
+        function closeDialog() {
+          pendingForm = null;
+          dialog.close();
+        }
+        if (cancelBtn) cancelBtn.addEventListener('click', closeDialog);
+        if (closeBtn) closeBtn.addEventListener('click', closeDialog);
+        dialog.addEventListener('click', function(e) {
+          if (e.target === dialog) closeDialog();
+        });
+        if (okBtn) okBtn.addEventListener('click', function() {
+          if (pendingForm) {
+            pendingForm.setAttribute('data-confirmed', 'true');
+            pendingForm.submit();
+          }
+          closeDialog();
         });
       }
 

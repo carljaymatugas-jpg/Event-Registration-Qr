@@ -3,12 +3,17 @@
 {% block content %}
 <div class="ticket-wrapper-viewport">
   <div class="ticket-container">
+    <div style="padding: 20px 24px 0;">
+      <div class="steps" style="margin-bottom: 0;" aria-label="Step 2 of 2: QR Ticket Ready">
+        <span class="on"></span><span class="on"></span>
+      </div>
+    </div>
     <div class="ticket-header-row">
       <div class="ticket-community-badge">
         <span class="ticket-community-icon"></span>
         <span>{{ reg.event_title }}</span>
       </div>
-      <span class="badge-pill {% if reg.status == 'Confirmed' %}badge-pill-green{% elif reg.status == 'Waitlisted' %}badge-pill-amber{% elif reg.status == 'CheckedIn' %}badge-pill-blue{% else %}badge-pill-purple{% endif %}">
+      <span class="badge-pill {% if reg.status == 'Confirmed' %}badge-pill-green{% elif reg.status == 'Waitlisted' %}badge-pill-amber{% elif reg.status == 'CheckedIn' %}badge-pill-blue{% else %}badge-pill-red{% endif %}">
         {% if reg.status == 'Confirmed' %}CONFIRMED TICKET{% elif reg.status == 'CheckedIn' %}CHECKED IN{% elif reg.status == 'Waitlisted' %}WAITLISTED TICKET{% else %}{{ reg.status | upper }}{% endif %}
       </span>
     </div>
@@ -78,10 +83,12 @@
     {% if reg.status in ['Confirmed', 'Waitlisted'] %}
     <div class="ticket-actions-group">
       <form method="POST" action="/ticket/{{ reg.ticket_code }}/cancel"
-            onsubmit="return confirm('Are you sure you want to cancel your registration?')">
+            data-confirm="Are you sure you want to cancel your registration for {{ reg.event_title }}? Your spot will be released."
+            data-confirm-title="Cancel Registration?"
+            data-confirm-ok="Yes, Cancel Registration">
         <input type="hidden" name="identifier" value="{{ identifier or reg.email }}">
         <input type="hidden" name="email" value="{{ reg.email }}">
-        <button type="submit" class="btn btn-secondary btn-sm btn-block" style="color: var(--color-danger); border-color: var(--color-danger-border);">
+        <button type="submit" class="btn btn-secondary btn-sm btn-block" style="color: var(--bad); border-color: var(--color-danger-border);">
           Cancel My Registration
         </button>
       </form>
