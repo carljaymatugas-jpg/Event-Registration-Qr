@@ -79,7 +79,7 @@
 
     <div class="info-notice-banner" style="margin: 1.25rem 0;">
       <span>ℹ️</span>
-      <span>Instant QR Ticket generation: Guaranteed entry pass sent to your email and ready for door check-in.</span>
+      <span>Instant QR Pass: Your ticket code and QR pass open immediately after submitting — save a screenshot or bookmark the ticket link{% if emailConfigured and not event.is_full %} (a copy is also sent to your email){% endif %}.</span>
     </div>
 
     {% if event.is_closed %}

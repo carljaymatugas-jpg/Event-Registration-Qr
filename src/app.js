@@ -113,9 +113,11 @@ const registrationLimiter = rateLimit({
 });
 
 // ── Middleware: inject user into every template ──────────────────────────────
+const { isRealEmailConfigured } = require('./utils/mailer');
 app.use((req, res, next) => {
   res.locals.staffUser = req.session.staff || null;
   res.locals.flash = req.session.flash || null;
+  res.locals.emailConfigured = isRealEmailConfigured();
   delete req.session.flash;
   next();
 });
