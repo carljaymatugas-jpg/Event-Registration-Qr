@@ -12,7 +12,7 @@ const GENERIC_LOOKUP_ERROR = 'Ticket not found or contact information does not m
 // GET /ticket/:code?email=... or ?identifier=...
 router.get('/:code', async (req, res, next) => {
   try {
-    const rawCode = (req.params.code || '').trim().toUpperCase();
+    const rawCode = (req.params.code || '').replace(/\s+/g, '').replace(/[\u2010-\u2015\u2212]/g, '-').toUpperCase();
     const { email, identifier, msg } = req.query;
     const rawId = (identifier || email || '').trim();
 
@@ -21,7 +21,10 @@ router.get('/:code', async (req, res, next) => {
     }
 
     if (!verifyTicketCode(rawCode)) {
-      return res.render('ticket_lookup.html', { error: GENERIC_LOOKUP_ERROR });
+      return res.render('ticket_lookup.html', {
+        error: GENERIC_LOOKUP_ERROR,
+        values: { ticket_code: rawCode, identifier: rawId }
+      });
     }
 
     const normPhone = normalizePHMobile(rawId);
@@ -38,7 +41,10 @@ router.get('/:code', async (req, res, next) => {
     `).get(rawCode, rawId, rawId, normPhone);
 
     if (!reg) {
-      return res.render('ticket_lookup.html', { error: GENERIC_LOOKUP_ERROR });
+      return res.render('ticket_lookup.html', {
+        error: GENERIC_LOOKUP_ERROR,
+        values: { ticket_code: rawCode, identifier: rawId }
+      });
     }
 
     let qrDataUrl = null;

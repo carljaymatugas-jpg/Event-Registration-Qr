@@ -18,12 +18,12 @@
     <form method="POST" action="/lookup" class="lookup-form" novalidate>
       <div class="field">
         <label for="ticket_code">Ticket Code <span style="color:var(--color-danger)">*</span></label>
-        <input type="text" id="ticket_code" name="ticket_code" placeholder="e.g. CDM-7K3P9Q-A3F21B9C"
+        <input type="text" id="ticket_code" name="ticket_code" value="{{ values.ticket_code or '' }}" placeholder="e.g. CDM-7K3P9Q-A3F21B9C"
                style="text-transform:uppercase; font-family:var(--font-mono); letter-spacing:0.06em;" required autocomplete="off">
       </div>
       <div class="field">
         <label for="identifier">Email or Mobile Number <span style="color:var(--color-danger)">*</span></label>
-        <input type="text" id="identifier" name="identifier" placeholder="juan@example.com or 09171234567" required autocomplete="username">
+        <input type="text" id="identifier" name="identifier" value="{{ values.identifier or '' }}" placeholder="juan@example.com or 09171234567" required autocomplete="username">
       </div>
       <button type="submit" class="btn btn-cta btn-block btn-lg" style="margin-top: 0.75rem; justify-content: center;">
         Find My Ticket →

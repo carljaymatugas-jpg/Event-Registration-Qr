@@ -248,17 +248,20 @@ router.post('/events/:id/register', async (req, res, next) => {
 
 // GET ticket lookup form
 router.get('/lookup', (req, res) => {
-  res.render('ticket_lookup.html', { error: null });
+  res.render('ticket_lookup.html', { error: null, values: {} });
 });
 
 // POST ticket lookup
 router.post('/lookup', (req, res) => {
   const { ticket_code, email, identifier } = req.body;
   const idVal = (identifier || email || '').trim();
-  const codeVal = (ticket_code || '').trim().toUpperCase();
+  const codeVal = (ticket_code || '').replace(/\s+/g, '').replace(/[\u2010-\u2015\u2212]/g, '-').toUpperCase();
 
   if (!codeVal || !idVal) {
-    return res.status(400).render('ticket_lookup.html', { error: 'Both ticket code and email (or mobile) are required.' });
+    return res.status(400).render('ticket_lookup.html', {
+      error: 'Both ticket code and email (or mobile) are required.',
+      values: { ticket_code: codeVal, identifier: idVal }
+    });
   }
 
   res.redirect(`/ticket/${encodeURIComponent(codeVal)}?identifier=${encodeURIComponent(idVal)}`);
