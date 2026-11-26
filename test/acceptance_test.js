@@ -179,6 +179,15 @@ async function runAcceptanceChecks() {
       lastCode = okRes.headers.location.match(/\/ticket\/([A-Z0-9-]+)/)[1];
     }
 
+    for (const badEmail of ['carljaymatugas@#$$%.com', 'carl#1@gmail.com', 'carl$test@example.com', 'carl+tag@gmail.com', 'carl@gmail..com', 'carl@-bad.com', 'carl@bad.123']) {
+      const badEmailRes = await post('/events/2/register', {
+        full_name: 'Valid Name',
+        email: badEmail,
+        mobile: '09170000998'
+      });
+      assert.strictEqual(badEmailRes.status, 400, `AT-6: Should reject special-char/invalid email "${badEmail}"`);
+    }
+
     for (const badName of ['John123', '<script>', '😀']) {
       const badRes = await post('/events/2/register', {
         full_name: badName,

@@ -6,9 +6,7 @@ const { generateTicketCode } = require('../utils/ticket');
 const { sendConfirmationEmail } = require('../utils/mailer');
 const { normalizePHMobile, isValidPHMobile } = require('../utils/phone');
 const { getEventAvailability, getConfirmedCount, getEventsWithAvailability } = require('../utils/availability');
-const { validateFullName, sanitizeInput } = require('../utils/validation');
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const { validateFullName, validateEmail, sanitizeInput } = require('../utils/validation');
 
 // Home — event list (attendee): show only Published events that have not ended
 router.get('/', async (req, res, next) => {
@@ -111,12 +109,11 @@ router.post('/events/:id/register', async (req, res, next) => {
       errors.full_name = nameValidation.msg;
     }
 
-    // TC-02a: Invalid email formats
-    const rawEmail = (email || '').trim().toLowerCase();
-    if (!rawEmail || !EMAIL_RE.test(rawEmail)) {
-      errors.email = 'A valid email address is required (e.g. name@example.com).';
-    } else if (rawEmail.length > 150) {
-      errors.email = 'Email address cannot exceed 150 characters.';
+    // TC-02a: Strict email validation (rejects special characters like #, $, %, +, etc.)
+    const emailValidation = validateEmail(email);
+    const rawEmail = emailValidation.valid ? emailValidation.value : (typeof email === 'string' ? email.trim().toLowerCase() : '');
+    if (!emailValidation.valid) {
+      errors.email = emailValidation.msg;
     }
 
     // TC-02b: Invalid phone formats (support 09XXXXXXXXX and +639XXXXXXXXX)

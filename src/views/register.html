@@ -59,22 +59,22 @@
       {% if errors.full_name %}<span class="field-error" role="alert" id="nameError">{{ errors.full_name }}</span>{% else %}<span class="field-error" role="alert" id="nameError" style="display:none;"></span>{% endif %}
     </div>
 
-    <div class="field {% if errors.email %}has-error{% endif %}">
+    <div class="field {% if errors.email %}has-error{% endif %}" id="fieldEmail">
       <label for="email">Email Address <span style="color:var(--color-danger)">*</span></label>
       <input type="email" id="email" name="email" value="{{ values.email or '' }}"
              placeholder="juan@example.com" autocomplete="email" maxlength="150" required
              {% if event.is_closed %}disabled{% endif %}>
-      {% if errors.email %}<span class="field-error" role="alert">{{ errors.email }}</span>{% endif %}
+      {% if errors.email %}<span class="field-error" role="alert" id="emailError">{{ errors.email }}</span>{% else %}<span class="field-error" role="alert" id="emailError" style="display:none;"></span>{% endif %}
     </div>
 
-    <div class="field {% if errors.mobile %}has-error{% endif %}">
+    <div class="field {% if errors.mobile %}has-error{% endif %}" id="fieldMobile">
       <label for="mobile">Mobile Number (Philippine Format) <span style="color:var(--color-danger)">*</span>
         <small class="text-muted" style="font-weight: 400;">(e.g. 09XXXXXXXXX or +639XXXXXXXXX)</small>
       </label>
       <input type="tel" id="mobile" name="mobile" value="{{ values.mobile or '' }}"
              placeholder="09171234567" maxlength="14" autocomplete="tel" required
              {% if event.is_closed %}disabled{% endif %}>
-      {% if errors.mobile %}<span class="field-error" role="alert">{{ errors.mobile }}</span>{% endif %}
+      {% if errors.mobile %}<span class="field-error" role="alert" id="mobileError">{{ errors.mobile }}</span>{% else %}<span class="field-error" role="alert" id="mobileError" style="display:none;"></span>{% endif %}
     </div>
 
     <div class="info-notice-banner" style="margin: 1.25rem 0;">
@@ -103,6 +103,8 @@
     var form = document.getElementById('registrationForm');
     var btn = document.getElementById('submitRegBtn');
     var nameInput = document.getElementById('full_name');
+    var emailInput = document.getElementById('email');
+    var mobileInput = document.getElementById('mobile');
 
     // Unicode-aware name validation (matches backend src/utils/validation.js)
     // Allows: Unicode letters, spaces, periods (.), apostrophes (', ‘, ’), hyphens (-)
@@ -147,44 +149,66 @@
       }
     }
 
-    function getOrCreateErrorSpan() {
-      var field = nameInput ? nameInput.closest('.field') : null;
-      if (!field) return null;
-      var existing = field.querySelector('.field-error');
-      if (existing) return existing;
-      var span = document.createElement('span');
-      span.className = 'field-error';
-      span.setAttribute('role', 'alert');
-      field.appendChild(span);
-      return span;
+    function validateEmail(val, checkPartialOnly) {
+      var trimmed = (val || '').trim().toLowerCase();
+      if (!trimmed) {
+        return checkPartialOnly ? null : 'A valid email address is required (e.g. name@example.com).';
+      }
+      if (trimmed.length > 150) {
+        return 'Email address cannot exceed 150 characters.';
+      }
+      if (/[\s\x00-\x1F\x7F]/.test(trimmed)) {
+        return 'A valid email address cannot contain spaces or control characters.';
+      }
+      if (/[^a-z0-9._@-]/.test(trimmed)) {
+        return 'A valid email address must only use letters, numbers, dots (.), underscores (_), or hyphens (-) — no special characters.';
+      }
+      if ((trimmed.match(/@/g) || []).length > 1 || /\.\./.test(trimmed)) {
+        return 'A valid email address is required (letters, numbers, dots, underscores, or hyphens only — no special characters, e.g. name@example.com).';
+      }
+      if (checkPartialOnly) return null;
+
+      var parts = trimmed.split('@');
+      if (parts.length !== 2 || !parts[0] || !parts[1]) {
+        return 'A valid email address is required (e.g. name@example.com).';
+      }
+      if (parts[0].length > 64) {
+        return 'Email username before @ cannot exceed 64 characters.';
+      }
+      var localRe = /^[a-z0-9]+([._-][a-z0-9]+)*$/;
+      var domainRe = /^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+(-[a-z0-9]+)*)*\.[a-z]{2,}$/;
+      if (!localRe.test(parts[0]) || !domainRe.test(parts[1])) {
+        return 'A valid email address is required (letters, numbers, dots, underscores, or hyphens only — no special characters, e.g. name@example.com).';
+      }
+      return null;
     }
 
-    var nameTouched = false;
-
-    if (nameInput) {
-      // Real-time validation on input (typing and paste)
-      nameInput.addEventListener('input', function() {
-        nameTouched = true;
-        validateAndShowName();
-      });
-      nameInput.addEventListener('paste', function() {
-        // validate after paste applies
-        setTimeout(function() {
-          nameTouched = true;
-          validateAndShowName();
-        }, 0);
-      });
-      nameInput.addEventListener('blur', function() {
-        nameTouched = true;
-        validateAndShowName();
-      });
+    function validateMobile(val, checkPartialOnly) {
+      var trimmed = (val || '').trim();
+      if (!trimmed) {
+        return checkPartialOnly ? null : 'Mobile must be a valid 11-digit Philippine number (e.g. 09171234567 or +639171234567).';
+      }
+      var cleaned = trimmed.replace(/[\s-]/g, '');
+      if (/[^0-9+]/.test(cleaned) || (cleaned.indexOf('+') > 0) || (cleaned.indexOf('+') === 0 && cleaned.lastIndexOf('+') > 0)) {
+        return 'Mobile must be a valid 11-digit Philippine number (e.g. 09171234567 or +639171234567).';
+      }
+      if (checkPartialOnly) return null;
+      if (!/^(09\d{9}|\+639\d{9})$/.test(cleaned)) {
+        return 'Mobile must be a valid 11-digit Philippine number (e.g. 09171234567 or +639171234567).';
+      }
+      return null;
     }
 
-    function validateAndShowName() {
-      if (!nameInput) return;
-      var field = nameInput.closest('.field');
-      var errSpan = getOrCreateErrorSpan();
-      var msg = validateName(nameInput.value);
+    function showFieldError(inputEl, msg) {
+      if (!inputEl) return;
+      var field = inputEl.closest('.field');
+      var errSpan = field ? field.querySelector('.field-error') : null;
+      if (!errSpan && field) {
+        errSpan = document.createElement('span');
+        errSpan.className = 'field-error';
+        errSpan.setAttribute('role', 'alert');
+        field.appendChild(errSpan);
+      }
       if (msg) {
         field && field.classList.add('has-error');
         if (errSpan) { errSpan.textContent = msg; errSpan.style.display = ''; }
@@ -194,19 +218,82 @@
       }
     }
 
+    var nameTouched = false;
+    var emailTouched = false;
+    var mobileTouched = false;
+
+    if (nameInput) {
+      nameInput.addEventListener('input', function() {
+        nameTouched = true;
+        validateAndShowName();
+      });
+      nameInput.addEventListener('paste', function() {
+        setTimeout(function() { nameTouched = true; validateAndShowName(); }, 0);
+      });
+      nameInput.addEventListener('blur', function() {
+        nameTouched = true;
+        validateAndShowName();
+      });
+    }
+
+    if (emailInput) {
+      emailInput.addEventListener('input', function() {
+        showFieldError(emailInput, validateEmail(emailInput.value, !emailTouched));
+      });
+      emailInput.addEventListener('paste', function() {
+        setTimeout(function() {
+          emailTouched = true;
+          showFieldError(emailInput, validateEmail(emailInput.value, false));
+        }, 0);
+      });
+      emailInput.addEventListener('blur', function() {
+        emailTouched = true;
+        showFieldError(emailInput, validateEmail(emailInput.value, false));
+      });
+    }
+
+    if (mobileInput) {
+      mobileInput.addEventListener('input', function() {
+        showFieldError(mobileInput, validateMobile(mobileInput.value, !mobileTouched));
+      });
+      mobileInput.addEventListener('paste', function() {
+        setTimeout(function() {
+          mobileTouched = true;
+          showFieldError(mobileInput, validateMobile(mobileInput.value, false));
+        }, 0);
+      });
+      mobileInput.addEventListener('blur', function() {
+        mobileTouched = true;
+        showFieldError(mobileInput, validateMobile(mobileInput.value, false));
+      });
+    }
+
+    function validateAndShowName() {
+      if (!nameInput) return;
+      showFieldError(nameInput, validateName(nameInput.value));
+    }
+
     if (form && btn) {
       form.addEventListener('submit', function(e) {
         if (btn.disabled) {
           e.preventDefault();
           return false;
         }
-        // Final name check before submit
         nameTouched = true;
+        emailTouched = true;
+        mobileTouched = true;
         var nameMsg = validateName(nameInput ? nameInput.value : '');
-        if (nameMsg) {
+        var emailMsg = validateEmail(emailInput ? emailInput.value : '', false);
+        var mobileMsg = validateMobile(mobileInput ? mobileInput.value : '', false);
+
+        if (nameMsg || emailMsg || mobileMsg) {
           e.preventDefault();
           validateAndShowName();
-          nameInput && nameInput.focus();
+          showFieldError(emailInput, emailMsg);
+          showFieldError(mobileInput, mobileMsg);
+          if (nameMsg && nameInput) nameInput.focus();
+          else if (emailMsg && emailInput) emailInput.focus();
+          else if (mobileMsg && mobileInput) mobileInput.focus();
           return false;
         }
         // Client-side instant lock against double click
