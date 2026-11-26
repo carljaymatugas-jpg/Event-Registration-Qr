@@ -10,7 +10,7 @@
     <p class="event-meta" style="margin-top: 0.2rem;">📅 {{ event.starts_at | cebuDate }} &nbsp;·&nbsp; 📍 {{ event.venue }}</p>
   </div>
   <div style="display: flex; gap: 0.5rem; align-items: center;">
-    <a href="/staff/attendees/{{ event.id }}/export.csv" class="btn btn-secondary btn-sm">⬇ Export CSV</a>
+    <a href="/staff/attendees/{{ event.id }}/export.csv{% if q %}?q={{ q | urlencode }}{% endif %}" class="btn btn-secondary btn-sm">⬇ Export CSV</a>
     {% if staffUser.role == 'organizer' %}
       <a href="/staff/events/{{ event.id }}/edit" class="btn btn-secondary btn-sm">✏ Edit Event</a>
     {% endif %}
@@ -20,10 +20,9 @@
 {% if flash %}<div class="alert alert-info">{{ flash }}</div>{% endif %}
 
 <!-- Stats Pill Row -->
-<div class="active-event-banner-bar" style="margin-bottom: 1.5rem; justify-content: flex-start; gap: 1.5rem;">
-  <div><small class="text-muted" style="display:block; text-transform:uppercase; font-size:0.65rem; font-weight:700;">CAPACITY</small><strong>{{ event.capacity }}</strong></div>
-  <div><small class="text-muted" style="display:block; text-transform:uppercase; font-size:0.65rem; font-weight:700;">CONFIRMED</small><strong>{{ stats.confirmed or 0 }}</strong></div>
-  <div><small class="text-muted" style="display:block; text-transform:uppercase; font-size:0.65rem; font-weight:700;">CHECKED IN</small><strong class="text-success">{{ stats.checked_in or 0 }}</strong></div>
+<div class="active-event-banner-bar" style="margin-bottom: 1.5rem; justify-content: flex-start; gap: 1.5rem; flex-wrap: wrap;">
+  <div><small class="text-muted" style="display:block; text-transform:uppercase; font-size:0.65rem; font-weight:700;">REGISTERED / CAPACITY</small><strong>{{ stats.confirmed or 0 }} / {{ event.capacity }}</strong></div>
+  <div><small class="text-muted" style="display:block; text-transform:uppercase; font-size:0.65rem; font-weight:700;">CHECKED IN / REGISTERED</small><strong class="text-success">{{ stats.checked_in or 0 }} / {{ stats.confirmed or 0 }}</strong></div>
   <div><small class="text-muted" style="display:block; text-transform:uppercase; font-size:0.65rem; font-weight:700;">WAITLISTED</small><strong class="text-warning">{{ stats.waitlisted or 0 }}</strong></div>
   <div><small class="text-muted" style="display:block; text-transform:uppercase; font-size:0.65rem; font-weight:700;">CANCELLED</small><strong class="text-muted">{{ stats.cancelled or 0 }}</strong></div>
 </div>
@@ -58,8 +57,8 @@
               <small style="font-weight: 700;">#{{ r.waitlist_pos }}</small>
             {% endif %}
           </td>
-          <td class="small">{{ r.registered_at }}</td>
-          <td class="small">{{ r.checked_in_at or '—' }}</td>
+          <td class="small">{{ r.registered_at | cebuDate }} {{ r.registered_at | cebuTime }}</td>
+          <td class="small">{% if r.checked_in_at %}{{ r.checked_in_at | cebuDate }} {{ r.checked_in_at | cebuTime }}{% else %}—{% endif %}</td>
           {% if staffUser.role == 'organizer' %}
           <td>
             <div style="display: flex; gap: 0.35rem; align-items: center;">

@@ -231,8 +231,10 @@
           <th>Status</th>
           <th>Capacity</th>
           <th>Confirmed</th>
-          <th>Waitlisted</th>
           <th>Checked In</th>
+          <th>Waitlisted</th>
+          <th>Cancelled</th>
+          <th>No-Shows</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -243,6 +245,7 @@
           <td><span class="badge badge-{{ ev.status | lower }}">{{ ev.status }}</span></td>
           <td>{{ ev.capacity }}</td>
           <td>{{ ev.confirmed or 0 }}</td>
+          <td><strong class="text-success">{{ ev.checked_in or 0 }}</strong></td>
           <td>
             {% if ev.waitlisted > 0 %}
               <span class="badge-pill badge-pill-amber">{{ ev.waitlisted }}</span>
@@ -250,7 +253,8 @@
               0
             {% endif %}
           </td>
-          <td><strong class="text-success">{{ ev.checked_in or 0 }}</strong></td>
+          <td class="text-muted">{{ ev.cancelled or 0 }}</td>
+          <td>{{ ev.no_shows }}</td>
           <td>
             <div style="display: flex; gap: 0.4rem;">
               <a href="/staff/checkin?event_id={{ ev.id }}" class="btn btn-primary btn-sm">Door Scanner</a>
@@ -259,7 +263,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7" class="text-center text-muted">No events found.</td></tr>
+        <tr><td colspan="9" class="text-center text-muted">No events found.</td></tr>
         {% endfor %}
       </tbody>
     </table>

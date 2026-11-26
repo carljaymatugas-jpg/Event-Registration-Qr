@@ -15,9 +15,12 @@ router.get('/:event_id', async (req, res, next) => {
     const event = await getEventAvailability(req.params.event_id);
     if (!event) return res.status(404).render('404.html');
 
-    const q = req.query.q ? `%${req.query.q}%` : null;
+    const rawQuery = (req.query.q || '').trim();
+    const q = rawQuery ? `%${rawQuery}%` : null;
     const rows = q
-      ? await db.prepare(`SELECT * FROM registrations WHERE event_id=? AND (full_name LIKE ? OR ticket_code LIKE ?) ORDER BY registered_at DESC`).all(event.id, q, q)
+      ? await db.prepare(
+          `SELECT * FROM registrations WHERE event_id=? AND (LOWER(full_name) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?) OR LOWER(ticket_code) LIKE LOWER(?)) ORDER BY registered_at DESC`
+        ).all(event.id, q, q, q)
       : await db.prepare(`SELECT * FROM registrations WHERE event_id=? ORDER BY registered_at DESC`).all(event.id);
 
     const stats = {
@@ -27,7 +30,7 @@ router.get('/:event_id', async (req, res, next) => {
       cancelled: event.cancelled_count
     };
 
-    res.render('staff/attendees.html', { event, rows, stats, q: req.query.q || '', flash: req.query.msg || null });
+    res.render('staff/attendees.html', { event, rows, stats, q: rawQuery, flash: req.query.msg || null });
   } catch (err) {
     next(err);
   }
@@ -120,22 +123,28 @@ router.post('/:event_id/promote/:reg_id', requireOrganizer, async (req, res, nex
   }
 });
 
-// GET CSV export (Organizer only)
+// GET CSV export (Organizer only) — matches attendee list rows with UTF-8 BOM for Excel
 router.get('/:event_id/export.csv', requireOrganizer, async (req, res, next) => {
   try {
     const event = await db.prepare('SELECT * FROM events WHERE id = ?').get(req.params.event_id);
     if (!event) return res.status(404).send('Not found');
-    const rows = await db.prepare('SELECT * FROM registrations WHERE event_id=? ORDER BY registered_at').all(event.id);
+    const rawQuery = (req.query.q || '').trim();
+    const q = rawQuery ? `%${rawQuery}%` : null;
+    const rows = q
+      ? await db.prepare(
+          `SELECT * FROM registrations WHERE event_id=? AND (LOWER(full_name) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?) OR LOWER(ticket_code) LIKE LOWER(?)) ORDER BY registered_at DESC`
+        ).all(event.id, q, q, q)
+      : await db.prepare('SELECT * FROM registrations WHERE event_id=? ORDER BY registered_at DESC').all(event.id);
 
     const headers = ['full_name', 'email', 'mobile', 'ticket_code', 'status', 'registered_at', 'checked_in_at', 'waitlist_pos'];
     const csvLines = [
       headers.join(','),
-      ...rows.map(r => headers.map(h => `"${(r[h] || '').toString().replace(/"/g, '""')}"`).join(','))
+      ...rows.map(r => headers.map(h => `"${(r[h] ?? '').toString().replace(/"/g, '""')}"`).join(','))
     ];
 
-    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="attendees-${event.id}.csv"`);
-    res.send(csvLines.join('\r\n'));
+    res.send('\uFEFF' + csvLines.join('\r\n'));
   } catch (err) {
     next(err);
   }
