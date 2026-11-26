@@ -41,25 +41,49 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
 // ── Global rate limiters ─────────────────────────────────────────────────────
+const db = require('./db/db');
+const { PgRateLimitStore } = require('./utils/rateLimitStore');
+
+function makeStore(prefix) {
+  if (db.isPostgres && db.pool && process.env.NODE_ENV !== 'test') {
+    return new PgRateLimitStore(db.pool, prefix);
+  }
+  return undefined; // Default MemoryStore for SQLite / isolated tests
+}
+
 const lookupLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
+  store: makeStore('rl_lookup'),
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
+    if (req.xhr || req.headers.accept?.includes('json')) {
+      return res.status(429).json({ error: 'Too many ticket lookup attempts. Please try again in 15 minutes.' });
+    }
     res.status(429).render('ticket_lookup.html', {
       error: 'Too many ticket lookup attempts. For security, please try again in 15 minutes.'
     });
   }
 });
 const checkinLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, max: 60,
-  message: 'Too many check-in attempts.'
+  windowMs: 1 * 60 * 1000,
+  max: 60,
+  store: makeStore('rl_checkin'),
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    if (req.xhr || req.headers.accept?.includes('json') || req.path === '/api') {
+      return res.status(429).json({ type: 'invalid', error: 'Too many check-in attempts. Please wait a minute.', msg: 'Too many check-in attempts. Please wait a minute.' });
+    }
+    res.status(429).render('error.html', { message: 'Too many check-in attempts. Please wait a minute.' });
+  }
 });
-// Rate limit staff login: max 10 attempts per 15 minutes per IP
+// Rate limit staff login: max 10 failed attempts per 15 minutes per IP
 const staffLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
+  store: makeStore('rl_login'),
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
@@ -73,6 +97,7 @@ const staffLoginLimiter = rateLimit({
 const registrationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
+  store: makeStore('rl_reg'),
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {

@@ -18,11 +18,11 @@ router.post('/login', async (req, res, next) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
-      return res.render('staff/login.html', { error: 'Username and password required.' });
+      return res.status(400).render('staff/login.html', { error: 'Username and password required.' });
     }
     const user = await db.prepare('SELECT * FROM staff_users WHERE username = ?').get(username.trim());
     if (!user || !bcrypt.compareSync(password, user.password_hash)) {
-      return res.render('staff/login.html', { error: 'Invalid username or password.' });
+      return res.status(401).render('staff/login.html', { error: 'Invalid username or password.' });
     }
     req.session.staff = { id: user.id, name: user.name, username: user.username, role: user.role };
     req.session.save((err) => {

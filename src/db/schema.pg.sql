@@ -60,3 +60,10 @@ CREATE TABLE IF NOT EXISTS "session" (
 );
 
 CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+
+-- Shared serverless rate-limit store (used on Vercel / Postgres)
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key      TEXT PRIMARY KEY,
+  hits     INTEGER NOT NULL,
+  reset_at TIMESTAMPTZ NOT NULL
+);
