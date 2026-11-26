@@ -102,18 +102,21 @@ if (DATABASE_URL) {
     }
   };
 
-  // Check connection and ensure organizer account
-  pool.query("SELECT id FROM staff_users WHERE username = 'organizer'")
-    .then(res => {
-      if (!res.rows.length) {
-        console.log('Postgres connected: organizer account missing, seeding...');
-        const seed = require('./seed');
-        if (typeof seed === 'function') seed();
-      }
-    })
-    .catch(err => {
-      console.warn('Neon PostgreSQL initial check error:', err.message);
-    });
+  const isSeedCli = require.main && require.main.filename && require.main.filename.endsWith('seed.js');
+  // Check connection and ensure organizer account (skip during explicit CLI seed runs)
+  if (process.env.SKIP_AUTO_SEED !== 'true' && !isSeedCli) {
+    pool.query("SELECT id FROM staff_users WHERE username = 'organizer'")
+      .then(res => {
+        if (!res.rows.length) {
+          console.log('Postgres connected: organizer account missing, seeding...');
+          const seed = require('./seed');
+          if (typeof seed === 'function') seed().catch(err => console.warn('Postgres auto-seed error:', err.message));
+        }
+      })
+      .catch(err => {
+        console.warn('Neon PostgreSQL initial check error:', err.message);
+      });
+  }
 
 } else {
   // SQLite fallback
@@ -218,9 +221,10 @@ if (DATABASE_URL) {
 
   module.exports = db;
 
+  const isSeedCliSqlite = require.main && require.main.filename && require.main.filename.endsWith('seed.js');
   try {
     const org = db.prepare('SELECT id FROM staff_users WHERE username = ?').get('organizer');
-    if (!org && process.env.SKIP_AUTO_SEED !== 'true') {
+    if (!org && process.env.SKIP_AUTO_SEED !== 'true' && !isSeedCliSqlite) {
       const seed = require('./seed');
       if (typeof seed === 'function') seed().catch(e => console.warn('Auto-seed error:', e.message));
     }
