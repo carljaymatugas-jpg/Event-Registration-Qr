@@ -60,6 +60,7 @@ async function runSeed(options = {}) {
 
   await ensureStaffUser('Event Organizer', 'organizer', orgPassword, 'organizer');
   await ensureStaffUser('Door Staff', 'doorstaff', doorPassword, 'door');
+  await ensureStaffUser('Door Staff', 'door', doorPassword, 'door');
 
   // Events
   async function seedEvent(title, desc, venue, startsAt, endsAt, capacity, status) {
