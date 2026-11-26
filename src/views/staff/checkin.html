@@ -78,6 +78,14 @@
     </div>
     {% endif %}
 
+    <!-- Live Counter Strip (always visible next to scanner & manual entry) -->
+    <div class="live-inline-counter" aria-live="polite">
+      <span class="live-dot"></span>
+      <span>Live Check-ins ({{ selectedEvent.title }}):</span>
+      <strong id="inlineCheckedInCount" style="color: var(--ok);">{{ checkedIn }}</strong>
+      <span class="text-muted">/ <span id="inlineConfirmedCount">{{ confirmed }}</span> confirmed</span>
+    </div>
+
     <!-- Manual Code Entry Box (Matching Reference) -->
     <div class="manual-entry-card">
       <h3 style="font-size: var(--text-sm); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-heading); margin-bottom: 0.75rem;">
@@ -103,10 +111,11 @@
       <h3 style="font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-secondary); margin-bottom: 0.5rem;">
         Undo a Check-in
       </h3>
-      <p class="small-note" style="margin-bottom: 0.75rem;">Accidentally checked in the wrong attendee? Enter registration ID:</p>
-      <form method="POST" action="/staff/checkin/undo" style="display: flex; gap: 0.5rem;">
+      <p class="small-note" style="margin-bottom: 0.75rem;">Accidentally checked in the wrong attendee? Enter ticket code:</p>
+      <form method="POST" action="/staff/checkin/undo" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
         <input type="hidden" name="event_id" value="{{ selectedId }}">
-        <input type="text" name="registration_id" placeholder="Registration ID (e.g. 1)" style="flex: 1; padding: 0.5rem 0.75rem; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-size: var(--text-sm);" required>
+        <input type="hidden" name="return_to" value="checkin">
+        <input type="text" name="ticket_code" id="undo_ticket_code" placeholder="Ticket Code (e.g. CDM-7K3P9Q-A3F21B9C)" style="flex: 1; min-width: 180px; padding: 0.55rem 0.75rem; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); font-family: var(--font-mono); font-weight: 700; text-transform: uppercase; font-size: var(--text-sm);" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" required>
         <button type="submit" class="btn btn-warning btn-sm">Undo Check-in</button>
       </form>
     </div>
@@ -167,6 +176,51 @@
           <strong>Attendee: Elias Tagalog · Waitlist Position #1</strong><br>
           <span style="opacity: 0.85; font-size: 0.8rem;">Door entry not permitted until organizer promotes spot upon cancellation.</span>
         </div>
+      </div>
+    </div>
+
+    <!-- Live Check-ins by Event Counter Table -->
+    <div class="table-card live-counter-card" style="margin-top: 1.25rem; margin-bottom: 0;">
+      <div class="table-card-header" style="padding: 0.9rem 1.25rem;">
+        <div style="display: flex; align-items: center; gap: 0.55rem;">
+          <span class="live-dot"></span>
+          <h3 style="font-size: var(--text-sm); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">
+            Live Check-ins
+          </h3>
+        </div>
+        <span class="badge-pill badge-pill-green" id="totalCheckinsBadge">
+          Total: <span id="totalLiveCheckins" style="margin-left: 4px;">{{ checkedIn }}</span>
+        </span>
+      </div>
+      <div class="table-responsive">
+        <table class="data-table" id="liveCheckinsTable">
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th style="text-align: right;">Check-ins</th>
+            </tr>
+          </thead>
+          <tbody id="liveCheckinsBody">
+            {% for ev in events %}
+            <tr class="{% if ev.id == selectedId %}live-row-active{% endif %}" data-event-row="{{ ev.id }}">
+              <td>
+                <a href="/staff/checkin?event_id={{ ev.id }}" style="color: var(--text); font-weight: 700;">{{ ev.title }}</a>
+                {% if ev.id == selectedId %}
+                  <span class="badge-pill badge-pill-purple" style="margin-left: 6px; padding: 2px 7px; font-size: 0.62rem;">ACTIVE</span>
+                {% endif %}
+              </td>
+              <td style="text-align: right; white-space: nowrap;">
+                <strong class="mono live-ev-count" data-event-count="{{ ev.id }}" style="font-size: 1.05rem; color: var(--ok);">
+                  {% if ev.id == selectedId %}{{ checkedIn }}{% else %}0{% endif %}
+                </strong>
+                <span class="text-muted small"> / <span data-event-cap="{{ ev.id }}">{{ ev.capacity }}</span></span>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="2" class="text-center text-muted">No active events found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -264,23 +318,87 @@
         resultDiv.appendChild(timeEl);
       }
 
-      // Sync live counters in header from server response
+      // Sync live counters in header, inline bar, and per-event table
       const cnt = document.getElementById('checkedInCount');
       const conf = document.getElementById('confirmedCount');
-      if (cnt && typeof data.checkedIn === 'number') {
-        cnt.textContent = data.checkedIn;
+      const inlineCnt = document.getElementById('inlineCheckedInCount');
+      const inlineConf = document.getElementById('inlineConfirmedCount');
+
+      let nextCheckedIn = null;
+      if (typeof data.checkedIn === 'number') {
+        nextCheckedIn = data.checkedIn;
       } else if (cnt && data.type === 'success') {
-        cnt.textContent = parseInt(cnt.textContent, 10) + 1;
+        nextCheckedIn = parseInt(cnt.textContent, 10) + 1;
       }
-      if (conf && typeof data.confirmed === 'number') {
-        conf.textContent = data.confirmed;
+      if (nextCheckedIn !== null) {
+        if (cnt) cnt.textContent = nextCheckedIn;
+        if (inlineCnt) inlineCnt.textContent = nextCheckedIn;
       }
+      if (typeof data.confirmed === 'number') {
+        if (conf) conf.textContent = data.confirmed;
+        if (inlineConf) inlineConf.textContent = data.confirmed;
+      }
+      if (window.refreshLiveCounters) window.refreshLiveCounters();
     })
     .catch(() => {
       resultDiv.textContent = 'Network error — try manual entry.';
       resultDiv.className = 'result-box result-invalid';
     });
   }
+})();
+
+// Live Check-in Counter Poller (updates every 3s & on load via existing /staff/dashboard/api/stats)
+(function() {
+  const selectedId = {{ selectedId | json }};
+
+  function applyLiveStats(data) {
+    if (!data || !Array.isArray(data.events)) return;
+    let totalChecked = 0;
+
+    data.events.forEach(function(ev) {
+      const checked = Number(ev.checked_in || 0);
+      totalChecked += checked;
+
+      const countEl = document.querySelector('[data-event-count="' + ev.id + '"]');
+      if (countEl) countEl.textContent = checked;
+
+      const capEl = document.querySelector('[data-event-cap="' + ev.id + '"]');
+      if (capEl && typeof ev.active_confirmed === 'number') {
+        capEl.textContent = ev.capacity;
+      }
+
+      if (selectedId && Number(ev.id) === Number(selectedId)) {
+        const cnt = document.getElementById('checkedInCount');
+        const conf = document.getElementById('confirmedCount');
+        const inlineCnt = document.getElementById('inlineCheckedInCount');
+        const inlineConf = document.getElementById('inlineConfirmedCount');
+        if (cnt) cnt.textContent = checked;
+        if (inlineCnt) inlineCnt.textContent = checked;
+        if (typeof ev.active_confirmed === 'number') {
+          if (conf) conf.textContent = ev.active_confirmed;
+          if (inlineConf) inlineConf.textContent = ev.active_confirmed;
+        }
+      }
+    });
+
+    const totalEl = document.getElementById('totalLiveCheckins');
+    if (totalEl) totalEl.textContent = totalChecked;
+  }
+
+  window.refreshLiveCounters = function() {
+    fetch('/staff/dashboard/api/stats?event_id=all&range=all', {
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store'
+    })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) {
+      if (data && data.success) applyLiveStats(data);
+    })
+    .catch(function() {});
+  };
+
+  window.refreshLiveCounters();
+  setInterval(window.refreshLiveCounters, 3000);
 })();
 </script>
 {% endblock %}

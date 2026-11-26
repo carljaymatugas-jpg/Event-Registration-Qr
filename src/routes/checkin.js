@@ -106,7 +106,14 @@ router.get('/', async (req, res, next) => {
     const checkedIn = selectedEvent ? selectedEvent.checked_in_count : 0;
     const confirmed = selectedEvent ? selectedEvent.confirmed_count : 0;
 
-    res.render('staff/checkin.html', { events, selectedEvent, selectedId, checkedIn, confirmed, dayStatus, result: null });
+    let result = null;
+    if (req.query.msg) {
+      const allowedTypes = ['success', 'already', 'waitlisted', 'invalid'];
+      const msgType = allowedTypes.includes(req.query.msg_type) ? req.query.msg_type : 'already';
+      result = { type: msgType, msg: req.query.msg };
+    }
+
+    res.render('staff/checkin.html', { events, selectedEvent, selectedId, checkedIn, confirmed, dayStatus, result });
   } catch (err) {
     next(err);
   }
@@ -167,14 +174,33 @@ router.post('/api', async (req, res, next) => {
   }
 });
 
-// POST undo check-in
+// POST undo check-in (supports ticket_code from Door Scanner AND numeric registration_id from Attendee List)
 router.post('/undo', async (req, res, next) => {
   try {
-    const { registration_id, event_id } = req.body;
-    const reg = await db.prepare('SELECT * FROM registrations WHERE id = ?').get(registration_id);
+    const { ticket_code, registration_id, event_id, return_to } = req.body;
+    const rawCodeInput = (ticket_code || (registration_id && !/^\d+$/.test(String(registration_id).trim()) ? registration_id : '') || '')
+      .replace(/\s+/g, '')
+      .replace(/[\u2010-\u2015\u2212]/g, '-')
+      .toUpperCase();
+    const numericId = !rawCodeInput && /^\d+$/.test(String(registration_id || '').trim())
+      ? parseInt(String(registration_id).trim(), 10)
+      : null;
 
-    if (!reg || reg.status !== 'CheckedIn') {
-      return res.redirect(`/staff/checkin?event_id=${event_id}&msg=Cannot undo — not checked in.`);
+    let reg = null;
+    if (rawCodeInput) {
+      reg = await db.prepare('SELECT * FROM registrations WHERE UPPER(ticket_code) = ?').get(rawCodeInput);
+    } else if (numericId !== null && !Number.isNaN(numericId)) {
+      reg = await db.prepare('SELECT * FROM registrations WHERE id = ?').get(numericId);
+    }
+
+    const fallbackEventId = encodeURIComponent(event_id || (reg && reg.event_id) || '');
+
+    if (!reg) {
+      return res.redirect(`/staff/checkin?event_id=${fallbackEventId}&msg=${encodeURIComponent('Cannot undo — ticket code not found.')}&msg_type=invalid`);
+    }
+
+    if (reg.status !== 'CheckedIn') {
+      return res.redirect(`/staff/checkin?event_id=${fallbackEventId}&msg=${encodeURIComponent(`Cannot undo — ${reg.full_name} is not checked in (status: ${reg.status}).`)}&msg_type=already`);
     }
 
     const upd = await db.prepare(
@@ -184,7 +210,13 @@ router.post('/undo', async (req, res, next) => {
     if (upd && upd.changes > 0) {
       audit.log(req.session.staff.id, 'undo_checkin', reg.id, `ticket:${reg.ticket_code}`);
     }
-    res.redirect(`/staff/attendees/${reg.event_id}?msg=Check-in undone.`);
+
+    if (return_to === 'checkin' || rawCodeInput) {
+      return res.redirect(
+        `/staff/checkin?event_id=${encodeURIComponent(event_id || reg.event_id)}&msg=${encodeURIComponent(`Check-in undone for ${reg.full_name} (${reg.ticket_code}).`)}&msg_type=success`
+      );
+    }
+    res.redirect(`/staff/attendees/${reg.event_id}?msg=Check-in+undone.`);
   } catch (err) {
     next(err);
   }

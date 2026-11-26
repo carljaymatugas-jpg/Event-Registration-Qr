@@ -243,6 +243,15 @@ async function runAcceptanceChecks() {
     const chkCanc = await post('/staff/checkin', { event_id: '6', ticket_code: todayCancCode }, { Cookie: doorCookie });
     assert(chkCanc.body.includes('result-invalid') && chkCanc.body.includes('Cancelled'));
 
+    // Undo check-in by ticket_code -> restores Confirmed and redirects back to /staff/checkin with message
+    const undoByCode = await post('/staff/checkin/undo', { event_id: '6', ticket_code: todayValidCode, return_to: 'checkin' }, { Cookie: doorCookie });
+    assert.strictEqual(undoByCode.status, 302, 'AT-7: Undo by ticket_code redirects cleanly');
+    assert(undoByCode.headers.location.includes('/staff/checkin') && undoByCode.headers.location.includes('Check-in%20undone'));
+    const afterUndoRow = await db.prepare('SELECT status FROM registrations WHERE ticket_code = ?').get(todayValidCode);
+    assert.strictEqual(afterUndoRow.status, 'Confirmed', 'AT-7: Undo by ticket_code must restore Confirmed status');
+    // Re-check in so AT-12 confirmed/checked-in ratio (1/1) matches below
+    await post('/staff/checkin', { event_id: '6', ticket_code: todayValidCode }, { Cookie: doorCookie });
+
     // Production startup refusal check (AT-10)
     let prodRefused = false;
     try {

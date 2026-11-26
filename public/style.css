@@ -2493,3 +2493,26 @@ dialog.confirm-dialog::backdrop {
 .text-center  { text-align: center; }
 .small        { font-size: 0.84rem; }
 .small-note   { font-size: 0.84rem; color: var(--muted); }
+
+/* ── Live Check-in Counter Bar & Table ─────────────────────────── */
+.live-inline-counter {
+  margin-top: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.live-counter-card .live-row-active {
+  background: var(--soft);
+}
+.live-counter-card td, .live-counter-card th {
+  padding: 0.7rem 1.15rem;
+}
