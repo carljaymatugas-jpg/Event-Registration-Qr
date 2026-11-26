@@ -113,6 +113,34 @@ function isEventDay(startsAt, endsAt = null, nowMs = Date.now()) {
   return todayKey >= startKey && todayKey <= (endKey || startKey);
 }
 
+/**
+ * Evaluates whether door check-in is allowed right now.
+ * Window: Event calendar day(s) in Asia/Manila (00:00 AM on start date through 11:59 PM on end date).
+ */
+function getCheckinWindowStatus(startsAt, endsAt = null, nowMs = Date.now()) {
+  const todayKey = getManilaDateKey(nowMs);
+  const startKey = getManilaDateKey(startsAt);
+  const endKey = endsAt ? getManilaDateKey(endsAt) : startKey;
+  if (!todayKey || !startKey) {
+    return { allowed: false, reason: 'invalid', msg: 'Invalid event schedule.' };
+  }
+  if (todayKey < startKey) {
+    return {
+      allowed: false,
+      reason: 'before',
+      msg: `Check-in is not open yet — allowed only on event day (${formatCebu(startsAt)}).`
+    };
+  }
+  if (todayKey > (endKey || startKey)) {
+    return {
+      allowed: false,
+      reason: 'after',
+      msg: 'Check-in closed — this event has already ended.'
+    };
+  }
+  return { allowed: true, reason: 'open' };
+}
+
 module.exports = {
   parseCebuMs,
   formatCebu,
@@ -122,4 +150,5 @@ module.exports = {
   getManilaDateKey,
   isSameDay,
   isEventDay,
+  getCheckinWindowStatus,
 };

@@ -29,7 +29,13 @@
       </select>
       <svg class="styled-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
     </div>
-    <span class="badge-pill badge-pill-green" style="padding: 0.25rem 0.65rem; font-size: 0.7rem; font-weight: 700;">DOOR OPEN</span>
+    {% if dayStatus and dayStatus.allowed %}
+      <span class="badge-pill badge-pill-green" style="padding: 0.25rem 0.65rem; font-size: 0.7rem; font-weight: 700;">CHECK-IN OPEN TODAY</span>
+    {% elif dayStatus and dayStatus.reason == 'before' %}
+      <span class="badge-pill badge-pill-amber" style="padding: 0.25rem 0.65rem; font-size: 0.7rem; font-weight: 700;">OPENS {{ selectedEvent.starts_at | cebuDate | upper }}</span>
+    {% elif dayStatus %}
+      <span class="badge-pill badge-pill-amber" style="padding: 0.25rem 0.65rem; font-size: 0.7rem; font-weight: 700;">EVENT ENDED</span>
+    {% endif %}
   </form>
   <div class="active-event-location">
     Door Staff: <strong>{{ staffUser.name }}</strong> · Station #1
@@ -235,20 +241,39 @@
                 : data.type === 'waitlisted' ? 'result-waitlisted'
                 : 'result-invalid';
       resultDiv.className = 'result-box ' + cls;
-      let html = '<strong>';
-      if (data.type === 'success') html += '✔ ';
-      else if (data.type === 'already') html += '⚠ ';
-      else if (data.type === 'waitlisted') html += '⛔ ';
-      else html += '✖ ';
-      html += data.msg + '</strong>';
-      if (data.name) html += '<div style="margin-top:0.3rem;">Attendee: ' + data.name + '</div>';
-      if (data.checkin_time) html += '<div class="small" style="margin-top:0.2rem; opacity:0.85;">First check-in: ' + data.checkin_time + '</div>';
-      resultDiv.innerHTML = html;
+      resultDiv.innerHTML = '';
+      const strongEl = document.createElement('strong');
+      const icon = data.type === 'success' ? '✔ '
+                 : data.type === 'already' ? '⚠ '
+                 : data.type === 'waitlisted' ? '⛔ '
+                 : '✖ ';
+      strongEl.textContent = icon + (data.msg || '');
+      resultDiv.appendChild(strongEl);
+      if (data.name) {
+        const nameEl = document.createElement('div');
+        nameEl.style.marginTop = '0.3rem';
+        nameEl.textContent = 'Attendee: ' + data.name;
+        resultDiv.appendChild(nameEl);
+      }
+      if (data.checkin_time) {
+        const timeEl = document.createElement('div');
+        timeEl.className = 'small';
+        timeEl.style.marginTop = '0.2rem';
+        timeEl.style.opacity = '0.85';
+        timeEl.textContent = 'First check-in: ' + data.checkin_time;
+        resultDiv.appendChild(timeEl);
+      }
 
-      // Update live counter in header
-      if (data.type === 'success') {
-        const cnt = document.getElementById('checkedInCount');
-        if (cnt) cnt.textContent = parseInt(cnt.textContent) + 1;
+      // Sync live counters in header from server response
+      const cnt = document.getElementById('checkedInCount');
+      const conf = document.getElementById('confirmedCount');
+      if (cnt && typeof data.checkedIn === 'number') {
+        cnt.textContent = data.checkedIn;
+      } else if (cnt && data.type === 'success') {
+        cnt.textContent = parseInt(cnt.textContent, 10) + 1;
+      }
+      if (conf && typeof data.confirmed === 'number') {
+        conf.textContent = data.confirmed;
       }
     })
     .catch(() => {
