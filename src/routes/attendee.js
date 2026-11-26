@@ -133,6 +133,12 @@ router.post('/events/:id/register', async (req, res, next) => {
 
     // Atomic transaction for capacity check, waitlist placement, and duplicate check
     const registerTx = db.transaction(async () => {
+      // Acquire row-level lock on event row in PostgreSQL before counting capacity
+      // so concurrent requests cannot double-book the last spot.
+      if (db.isPostgres) {
+        await db.prepare('SELECT id FROM events WHERE id = ? FOR UPDATE').get(event.id);
+      }
+
       // Check duplicate across Confirmed, CheckedIn, and Waitlisted
       const dup = await db.prepare(`
         SELECT id, email, mobile, ticket_code, status FROM registrations

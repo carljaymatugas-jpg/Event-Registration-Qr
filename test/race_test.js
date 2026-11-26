@@ -1,87 +1,80 @@
 'use strict';
 /**
- * Concurrency & Race Condition Verification Test (Level 3 - Item 13)
- * Proves that:
- * 1. Concurrent registrations for the last spot never overbook capacity (atomic transaction).
- * 2. Concurrent check-ins on the same ticket never double-check-in (atomic update & lock).
+ * Concurrency & Race Condition Verification Test (Level 3 - T8)
+ * Runs against:
+ * 1. Isolated in-memory SQLite (BEGIN IMMEDIATE + atomic check-in UPDATE)
+ * 2. PostgreSQL (Neon) when DATABASE_URL is set (SELECT ... FOR UPDATE + atomic UPDATE + uq_event_email_active)
  */
+require('dotenv').config();
 const assert = require('assert');
-const path = require('path');
-const fs = require('fs');
-
-// Create an isolated in-memory test database
 const { DatabaseSync } = require('node:sqlite');
-const db = new DatabaseSync(':memory:');
-db.exec('PRAGMA foreign_keys = ON;');
-db.exec('PRAGMA journal_mode = WAL;');
 
-// Initialize schema
-db.exec(`
-  CREATE TABLE events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    capacity INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'Published'
-  );
-  CREATE TABLE registrations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_id INTEGER NOT NULL REFERENCES events(id),
-    full_name TEXT NOT NULL,
-    email TEXT NOT NULL,
-    mobile TEXT NOT NULL,
-    ticket_code TEXT NOT NULL UNIQUE,
-    status TEXT NOT NULL CHECK(status IN ('Confirmed','CheckedIn','Waitlisted','Cancelled')),
-    waitlist_pos INTEGER,
-    registered_at TEXT NOT NULL DEFAULT (datetime('now')),
-    checked_in_at TEXT,
-    checked_in_by INTEGER
-  );
-  CREATE UNIQUE INDEX uq_active_reg ON registrations(event_id, email)
-    WHERE status IN ('Confirmed','CheckedIn','Waitlisted');
-`);
-
-db.transaction = (fn) => {
-  return (...args) => {
-    db.exec('BEGIN IMMEDIATE;');
+function createSqliteTestDb() {
+  const sdb = new DatabaseSync(':memory:');
+  sdb.exec('PRAGMA foreign_keys = ON;');
+  sdb.exec('PRAGMA journal_mode = WAL;');
+  sdb.exec(`
+    CREATE TABLE events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      capacity INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'Published'
+    );
+    CREATE TABLE registrations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id INTEGER NOT NULL REFERENCES events(id),
+      full_name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      mobile TEXT NOT NULL,
+      ticket_code TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL CHECK(status IN ('Confirmed','CheckedIn','Waitlisted','Cancelled')),
+      waitlist_pos INTEGER,
+      registered_at TEXT NOT NULL DEFAULT (datetime('now')),
+      checked_in_at TEXT,
+      checked_in_by INTEGER
+    );
+    CREATE UNIQUE INDEX uq_active_reg ON registrations(event_id, email)
+      WHERE status IN ('Confirmed','CheckedIn','Waitlisted');
+  `);
+  sdb.transaction = (fn) => (...args) => {
+    sdb.exec('BEGIN IMMEDIATE;');
     try {
       const res = fn(...args);
-      db.exec('COMMIT;');
+      sdb.exec('COMMIT;');
       return res;
     } catch (e) {
-      try { db.exec('ROLLBACK;'); } catch (_) {}
+      try { sdb.exec('ROLLBACK;'); } catch (_) {}
       throw e;
     }
   };
-};
+  return sdb;
+}
 
-async function testLastSpotRegistrationRace() {
-  console.log('\n--- Test 1: Last-Spot Registration Race Condition ---');
-  // Create an event with capacity = 1
-  db.exec("INSERT INTO events (title, capacity, status) VALUES ('Race Event', 1, 'Published');");
+async function runSqliteRaceTests() {
+  const sdb = createSqliteTestDb();
+  console.log('\n--- [SQLite] Test 1: Last-Spot Registration Race Condition ---');
+  sdb.exec("INSERT INTO events (title, capacity, status) VALUES ('SQLite Race Event', 1, 'Published');");
   const eventId = 1;
 
-  // Function simulating attendee registration under concurrent traffic
   function attemptRegister(name, email, code) {
     return new Promise((resolve) => {
-      // Immediate execution simulation
       setImmediate(() => {
         try {
-          const runTx = db.transaction(() => {
-            const confirmedCount = db.prepare(
+          const runTx = sdb.transaction(() => {
+            const confirmedCount = sdb.prepare(
               "SELECT COUNT(*) AS c FROM registrations WHERE event_id = ? AND status IN ('Confirmed','CheckedIn')"
             ).get(eventId).c;
 
             if (confirmedCount < 1) {
-              db.prepare(
+              sdb.prepare(
                 "INSERT INTO registrations (event_id, full_name, email, mobile, ticket_code, status) VALUES (?,?,?,?,?,'Confirmed')"
               ).run(eventId, name, email, '09171234567', code);
               return { success: true, status: 'Confirmed' };
-            } else {
-              db.prepare(
-                "INSERT INTO registrations (event_id, full_name, email, mobile, ticket_code, status, waitlist_pos) VALUES (?,?,?,?,?,'Waitlisted', 1)"
-              ).run(eventId, name, email, '09171234567', code);
-              return { success: true, status: 'Waitlisted' };
             }
+            sdb.prepare(
+              "INSERT INTO registrations (event_id, full_name, email, mobile, ticket_code, status, waitlist_pos) VALUES (?,?,?,?,?,'Waitlisted', 1)"
+            ).run(eventId, name, email, '09171234567', code);
+            return { success: true, status: 'Waitlisted' };
           });
           resolve(runTx());
         } catch (err) {
@@ -91,76 +84,148 @@ async function testLastSpotRegistrationRace() {
     });
   }
 
-  // Launch 10 simultaneous registration attempts for the 1 remaining spot
-  const promises = [];
-  for (let i = 1; i <= 10; i++) {
-    promises.push(attemptRegister(`User ${i}`, `user${i}@example.com`, `TICK-${i}`));
-  }
-
-  const results = await Promise.all(promises);
+  const results = await Promise.all(
+    Array.from({ length: 10 }, (_, i) => attemptRegister(`User ${i + 1}`, `user${i + 1}@example.com`, `SQL-${i + 1}`))
+  );
   const confirmed = results.filter(r => r.status === 'Confirmed');
   const waitlisted = results.filter(r => r.status === 'Waitlisted');
+  assert.strictEqual(confirmed.length, 1, 'SQLite: Exactly ONE confirmed');
+  assert.strictEqual(waitlisted.length, 9, 'SQLite: Exactly NINE waitlisted');
+  console.log('✅ PASSED [SQLite]: 1 Confirmed, 9 Waitlisted out of 10 simultaneous requests.');
 
-  console.log(`Total simultaneous requests: ${promises.length}`);
-  console.log(`Confirmed: ${confirmed.length}`);
-  console.log(`Waitlisted: ${waitlisted.length}`);
-
-  assert.strictEqual(confirmed.length, 1, 'Exactly ONE user must get the last confirmed spot');
-  assert.strictEqual(waitlisted.length, 9, 'All other 9 users must be placed on waitlist');
-  console.log('✅ PASSED: Last spot registration handled atomically without overbooking!');
-}
-
-async function testSimultaneousCheckinRace() {
-  console.log('\n--- Test 2: Simultaneous Check-in Race Condition ---');
-  // Seed a confirmed ticket
-  db.prepare(
-    "INSERT INTO registrations (event_id, full_name, email, mobile, ticket_code, status) VALUES (1, 'Checkin User', 'checkin@example.com', '09170000000', 'CHECK-001', 'Confirmed')"
+  console.log('\n--- [SQLite] Test 2: Simultaneous Atomic Check-in Race ---');
+  sdb.prepare(
+    "INSERT INTO registrations (event_id, full_name, email, mobile, ticket_code, status) VALUES (1, 'Checkin User', 'checkin@example.com', '09170000000', 'SQLCHK-001', 'Confirmed')"
   ).run();
 
   function attemptCheckin(staffId) {
     return new Promise((resolve) => {
       setImmediate(() => {
-        try {
-          const runTx = db.transaction(() => {
-            const row = db.prepare('SELECT status, checked_in_at FROM registrations WHERE ticket_code = ?').get('CHECK-001');
-            if (row.status === 'CheckedIn') {
-              return { status: 'already', checkin_time: row.checked_in_at };
-            }
-            const now = new Date().toISOString();
-            db.prepare("UPDATE registrations SET status='CheckedIn', checked_in_at=?, checked_in_by=? WHERE ticket_code=?")
-              .run(now, staffId, 'CHECK-001');
-            return { status: 'success', checkin_time: now };
-          });
-          resolve(runTx());
-        } catch (err) {
-          resolve({ status: 'error', error: err.message });
+        const now = new Date().toISOString();
+        const upd = sdb.prepare(
+          "UPDATE registrations SET status='CheckedIn', checked_in_at=?, checked_in_by=? WHERE ticket_code=? AND status='Confirmed'"
+        ).run(now, staffId, 'SQLCHK-001');
+        if (upd.changes === 0) {
+          const row = sdb.prepare('SELECT checked_in_at FROM registrations WHERE ticket_code=?').get('SQLCHK-001');
+          resolve({ status: 'already', checkin_time: row.checked_in_at });
+        } else {
+          resolve({ status: 'success', checkin_time: now });
         }
       });
     });
   }
 
-  // Two staff phones scan the exact same ticket at the exact same moment
-  const results = await Promise.all([
-    attemptCheckin(101),
-    attemptCheckin(102)
-  ]);
+  const chkResults = await Promise.all([attemptCheckin(1), attemptCheckin(2)]);
+  assert.strictEqual(chkResults.filter(r => r.status === 'success').length, 1);
+  assert.strictEqual(chkResults.filter(r => r.status === 'already').length, 1);
+  console.log('✅ PASSED [SQLite]: Simultaneous check-in prevented double check-in.');
+}
 
-  const success = results.filter(r => r.status === 'success');
-  const already = results.filter(r => r.status === 'already');
+async function runPostgresRaceTests() {
+  if (!process.env.DATABASE_URL) {
+    console.log('\n[PostgreSQL] Skipped (DATABASE_URL not set).');
+    return;
+  }
 
-  console.log(`Concurrent scan results:`, results);
-  assert.strictEqual(success.length, 1, 'Exactly ONE scan must return "Checked in" (success)');
-  assert.strictEqual(already.length, 1, 'The duplicate scan must return "Already checked in"');
-  console.log('✅ PASSED: Simultaneous check-in prevented double check-in!');
+  console.log('\n--- [PostgreSQL] Connecting for Neon concurrency tests ---');
+  process.env.SKIP_AUTO_SEED = 'true';
+  const db = require('../src/db/db');
+  const { getConfirmedCount } = require('../src/utils/availability');
+  const { nowCebu } = require('../src/utils/time');
+
+  const insEv = await db.prepare(
+    `INSERT INTO events (title, description, venue, starts_at, ends_at, capacity, status)
+     VALUES (?, ?, ?, ?, ?, ?, 'Published')`
+  ).run(`__pg_race_test_${Date.now()}`, 'Temporary concurrency test', 'Test Lab', '2029-12-30 10:00:00', '2029-12-30 12:00:00', 1);
+  const testEventId = insEv.lastInsertRowid;
+
+  try {
+    // 1. 10 concurrent registration transactions against Postgres using FOR UPDATE
+    console.log('--- [PostgreSQL] Test 1: Last-Spot Registration Race (SELECT ... FOR UPDATE) ---');
+    const regAttempts = Array.from({ length: 10 }, (_, i) => {
+      const email = `pgrace${i + 1}_${Date.now()}@example.com`;
+      const code = `PGR-${String(i + 1).padStart(5, '0')}-${Date.now().toString(36).slice(-8).toUpperCase()}`;
+      return db.transaction(async () => {
+        await db.prepare('SELECT id FROM events WHERE id = ? FOR UPDATE').get(testEventId);
+        const currentConfirmed = await getConfirmedCount(testEventId);
+        const now = nowCebu();
+        if (currentConfirmed < 1) {
+          await db.prepare(
+            `INSERT INTO registrations (event_id, full_name, email, mobile, ticket_code, status, registered_at)
+             VALUES (?, ?, ?, ?, ?, 'Confirmed', ?)`
+          ).run(testEventId, `PG User ${i + 1}`, email, `09170000${String(i).padStart(3, '0')}`, code, now);
+          return { status: 'Confirmed', code };
+        }
+        await db.prepare(
+          `INSERT INTO registrations (event_id, full_name, email, mobile, ticket_code, status, waitlist_pos, registered_at)
+           VALUES (?, ?, ?, ?, ?, 'Waitlisted', ?, ?)`
+        ).run(testEventId, `PG User ${i + 1}`, email, `09170000${String(i).padStart(3, '0')}`, code, i, now);
+        return { status: 'Waitlisted', code };
+      })();
+    });
+
+    const pgRegResults = await Promise.all(regAttempts);
+    const pgConfirmed = pgRegResults.filter(r => r.status === 'Confirmed');
+    const pgWaitlisted = pgRegResults.filter(r => r.status === 'Waitlisted');
+    assert.strictEqual(pgConfirmed.length, 1, `PG: Expected 1 Confirmed, got ${pgConfirmed.length}`);
+    assert.strictEqual(pgWaitlisted.length, 9, `PG: Expected 9 Waitlisted, got ${pgWaitlisted.length}`);
+    console.log('✅ PASSED [PostgreSQL]: 1 Confirmed, 9 Waitlisted under 10 concurrent FOR UPDATE transactions.');
+
+    // 2. Simultaneous atomic check-in against Postgres on that confirmed row
+    console.log('--- [PostgreSQL] Test 2: Simultaneous Atomic Check-in (WHERE status = Confirmed) ---');
+    const confirmedCode = pgConfirmed[0].code;
+    const confirmedRow = await db.prepare('SELECT id FROM registrations WHERE ticket_code = ?').get(confirmedCode);
+
+    const attemptPgCheckin = async (delayOffsetMs) => {
+      const ts = new Date(Date.now() + delayOffsetMs).toLocaleString('sv-SE', { timeZone: 'Asia/Manila' }).replace('T', ' ');
+      const upd = await db.prepare(
+        `UPDATE registrations SET status='CheckedIn', checked_in_at=?, checked_in_by=NULL WHERE id=? AND status='Confirmed'`
+      ).run(ts, confirmedRow.id);
+      if (upd.changes === 0) {
+        const fresh = await db.prepare('SELECT checked_in_at FROM registrations WHERE id = ?').get(confirmedRow.id);
+        return { status: 'already', checkin_time: fresh.checked_in_at };
+      }
+      return { status: 'success', checkin_time: ts };
+    };
+
+    const pgChkResults = await Promise.all([attemptPgCheckin(0), attemptPgCheckin(500)]);
+    assert.strictEqual(pgChkResults.filter(r => r.status === 'success').length, 1, 'PG: Exactly 1 check-in succeeds');
+    assert.strictEqual(pgChkResults.filter(r => r.status === 'already').length, 1, 'PG: Concurrent scan returns already');
+    console.log('✅ PASSED [PostgreSQL]: Atomic conditional UPDATE prevented double check-in.');
+
+    // 3. Unique partial index prevents duplicate active email in Postgres
+    console.log('--- [PostgreSQL] Test 3: Unique Partial Index Verification ---');
+    let dupBlocked = false;
+    try {
+      const dupEmail = `pgdup_${Date.now()}@example.com`;
+      await db.prepare(
+        `INSERT INTO registrations (event_id, full_name, email, mobile, ticket_code, status)
+         VALUES (?, 'Dup 1', ?, '09171119991', ?, 'Confirmed')`
+      ).run(testEventId, dupEmail, `DUP-A-${Date.now()}`);
+      await db.prepare(
+        `INSERT INTO registrations (event_id, full_name, email, mobile, ticket_code, status)
+         VALUES (?, 'Dup 2', ?, '09171119992', ?, 'Confirmed')`
+      ).run(testEventId, dupEmail, `DUP-B-${Date.now()}`);
+    } catch (err) {
+      dupBlocked = err.code === '23505';
+    }
+    assert.strictEqual(dupBlocked, true, 'PG: uq_event_email_active must reject duplicate active email with 23505');
+    console.log('✅ PASSED [PostgreSQL]: Unique partial index enforced active email uniqueness.');
+  } finally {
+    await db.prepare('DELETE FROM registrations WHERE event_id = ?').run(testEventId);
+    await db.prepare('DELETE FROM events WHERE id = ?').run(testEventId);
+    if (db.pool) await db.pool.end();
+  }
 }
 
 async function run() {
   try {
-    await testLastSpotRegistrationRace();
-    await testSimultaneousCheckinRace();
+    await runSqliteRaceTests();
+    await runPostgresRaceTests();
     console.log('\n========================================');
     console.log('🎉 ALL CONCURRENCY & RACE TESTS PASSED!');
     console.log('========================================\n');
+    process.exit(0);
   } catch (err) {
     console.error('❌ Test failed:', err);
     process.exit(1);

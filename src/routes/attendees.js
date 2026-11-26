@@ -61,6 +61,9 @@ router.post('/:event_id/uncancel/:reg_id', requireOrganizer, async (req, res, ne
     if (!reg || !event) return res.redirect(`/staff/attendees/${req.params.event_id}?msg=Registration not found.`);
 
     const restore = db.transaction(async () => {
+      if (db.isPostgres) {
+        await db.prepare('SELECT id FROM events WHERE id = ? FOR UPDATE').get(event.id);
+      }
       const confirmed = await getConfirmedCount(event.id);
       if (confirmed >= event.capacity) return { error: 'Event is full — cannot restore as Confirmed.' };
 
@@ -105,6 +108,9 @@ router.post('/:event_id/promote/:reg_id', requireOrganizer, async (req, res, nex
     if (!reg || !event) return res.redirect(`/staff/attendees/${req.params.event_id}?msg=Not found.`);
 
     const promote = db.transaction(async () => {
+      if (db.isPostgres) {
+        await db.prepare('SELECT id FROM events WHERE id = ? FOR UPDATE').get(event.id);
+      }
       const confirmed = await getConfirmedCount(event.id);
       if (confirmed >= event.capacity) return false;
       await db.prepare(`UPDATE registrations SET status='Confirmed', waitlist_pos=NULL WHERE id=?`).run(reg.id);
